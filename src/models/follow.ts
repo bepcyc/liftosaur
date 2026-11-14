@@ -52,15 +52,19 @@ export function Follow_displayName(nickname: string | undefined): string {
 
 export const Follow_maxNicknameLength = 30;
 
-export function Follow_nicknameError(text: string): string | undefined {
-  const trimmed = text.trim();
-  if (trimmed.length === 0) {
-    return "Pick a nickname";
+export function Follow_parseNickname(text: string): { nickname: string } | { error: string } {
+  const nickname = text.trim();
+  if (nickname.length === 0) {
+    return { error: "Pick a nickname" };
   }
-  if (trimmed.length > Follow_maxNicknameLength) {
-    return `Use up to ${Follow_maxNicknameLength} characters`;
+  if (nickname.length > Follow_maxNicknameLength) {
+    return { error: `Use up to ${Follow_maxNicknameLength} characters` };
   }
-  return undefined;
+  return { nickname };
+}
+
+export function Follow_needsNickname(nickname: string | undefined): boolean {
+  return !nickname?.trim();
 }
 
 export function Follow_normalizePermissions(permissions: IFollowPermissions): IFollowPermissions {

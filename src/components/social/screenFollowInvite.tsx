@@ -10,6 +10,7 @@ import { Button } from "../button";
 import { IconSpinner } from "../icons/iconSpinner";
 import { Avatar } from "./avatar";
 import { NicknameGate } from "./nicknameGate";
+import { Follow_needsNickname } from "../../models/follow";
 
 interface IProps {
   token: string;
@@ -100,7 +101,7 @@ export function ScreenFollowInvite(props: IProps): JSX.Element {
               <Text className="mt-2 mb-6 text-center text-text-secondary">
                 They choose what you can see after approving.
               </Text>
-              {!props.ownNickname?.trim() ? (
+              {Follow_needsNickname(props.ownNickname) ? (
                 <NicknameGate
                   reason="They see it on your request and in their friends list."
                   dispatch={props.dispatch}

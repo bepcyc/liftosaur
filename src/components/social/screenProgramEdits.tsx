@@ -1,9 +1,10 @@
-import { JSX, useEffect, useMemo } from "react";
+import { JSX, useCallback, useEffect, useMemo } from "react";
 import { View } from "react-native";
 import { Text } from "../primitives/text";
 import { useNavOptions } from "../../navigation/useNavOptions";
 import { IDispatch } from "../../ducks/types";
-import { ISocialState } from "../../models/socialState";
+import { ISocialState, SocialState_programEditsKey } from "../../models/socialState";
+import { FriendLoadError } from "./friendLoadError";
 import { IProgramEdit } from "../../models/friendProgram";
 import { Thunk_loadProgramEditsFor } from "../../ducks/socialThunks";
 import { LineDiff_diff, LineDiff_rows, LineDiff_withInline } from "../../utils/lineDiff";
@@ -81,11 +82,16 @@ function EditDiff(props: { edit: IProgramEdit }): JSX.Element {
 export function ScreenProgramEdits(props: IProps): JSX.Element {
   useNavOptions({ navTitle: "Changes by friends", navSubtitle: props.programName });
   const edits = props.social?.programEditsByProgram[props.programId];
-
-  useEffect(() => {
+  const error = props.social?.friendErrors[SocialState_programEditsKey(props.programId)];
+  const load = useCallback(() => {
     props.dispatch(Thunk_loadProgramEditsFor(props.programId));
   }, [props.programId]);
 
+  useEffect(load, [load]);
+
+  if (edits == null && error != null) {
+    return <FriendLoadError message={error} onRetry={load} />;
+  }
   if (edits == null) {
     return (
       <View className="items-center py-8">

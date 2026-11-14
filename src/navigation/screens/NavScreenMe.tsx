@@ -2,7 +2,7 @@ import { JSX, useMemo } from "react";
 import { View } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { useAppState } from "../StateContext";
-import { buildNavCommon } from "../utils";
+import { buildNavCommon, programEditsOfExistingPrograms } from "../utils";
 import { NavScreenContent } from "../NavScreenContent";
 import { ScreenSettings as ScreenSettingsComponent } from "../../components/screenSettings";
 import { ScreenAccount as ScreenAccountComponent } from "../../components/screenAccount";
@@ -40,7 +40,7 @@ export function NavScreenSettings(): JSX.Element {
     state.storage.currentProgramId != null ? Program_getProgram(state, state.storage.currentProgramId) : undefined;
   const isOngoingProgress = (state.storage.progress?.length ?? 0) > 0;
   const pendingFollowRequests = SocialState_pendingRequestCount(state.social, state.user?.id);
-  const unseenProgramEdits = SocialState_unseenProgramEdits(state.social, state.user?.id);
+  const unseenProgramEdits = SocialState_unseenProgramEdits(programEditsOfExistingPrograms(state));
   const navCommon = useMemo(
     () => ({
       loading,

@@ -416,8 +416,8 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
     return true;
   }
 
-  async function saveFriendProgram(ownerId: string): Promise<void> {
-    const request = PlannerProgramSave_friendRequest(state.current.program, friendBase);
+  async function saveFriendProgram(ownerId: string, base: string): Promise<void> {
+    const request = PlannerProgramSave_friendRequest(state.current.program, base);
     const saved = await service.saveFriendProgram(ownerId, request.programId, request.text, request.base);
     if (saved.success) {
       setFriendBase(saved.data.base);
@@ -578,7 +578,7 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
           try {
             const target = PlannerProgramSave_target(friendTarget);
             if (target.kind === "friend") {
-              await saveFriendProgram(target.ownerId);
+              await saveFriendProgram(target.ownerId, friendBase ?? target.loadedBase);
               return;
             }
             const exportProgram = Program_exportProgram(state.current.program, settings);

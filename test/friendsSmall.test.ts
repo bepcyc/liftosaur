@@ -13,7 +13,8 @@ import {
   Follow_applyPermissionsPatch,
   Follow_defaultPermissions,
   Follow_displayName,
-  Follow_nicknameError,
+  Follow_needsNickname,
+  Follow_parseNickname,
   Follow_normalizePermissions,
   Follow_parsePermissions,
   Follow_parsePermissionsPatch,
@@ -46,12 +47,20 @@ describe("Avatar", () => {
     expect(Avatar_initials("   ")).to.equal("?");
   });
 
-  it("asks for a non-empty nickname of at most 30 characters", () => {
-    expect(Follow_nicknameError("")).to.equal("Pick a nickname");
-    expect(Follow_nicknameError("   ")).to.equal("Pick a nickname");
-    expect(Follow_nicknameError("x".repeat(31))).to.contain("30");
-    expect(Follow_nicknameError(`  ${"x".repeat(30)}  `)).to.equal(undefined);
-    expect(Follow_nicknameError("Sam")).to.equal(undefined);
+  it("asks for a non-empty nickname of at most 30 characters, and saves it trimmed", () => {
+    expect(Follow_parseNickname("")).to.eql({ error: "Pick a nickname" });
+    expect(Follow_parseNickname("   ")).to.eql({ error: "Pick a nickname" });
+    expect(Follow_parseNickname("x".repeat(31)))
+      .to.have.property("error")
+      .that.contains("30");
+    expect(Follow_parseNickname(`  ${"x".repeat(30)}  `)).to.eql({ nickname: "x".repeat(30) });
+    expect(Follow_parseNickname(" Sam ")).to.eql({ nickname: "Sam" });
+  });
+
+  it("needs a nickname when it is missing or only spaces", () => {
+    expect(Follow_needsNickname(undefined)).to.equal(true);
+    expect(Follow_needsNickname("  ")).to.equal(true);
+    expect(Follow_needsNickname("Sam")).to.equal(false);
   });
 
   it("names a friend without a nickname 'A friend'", () => {

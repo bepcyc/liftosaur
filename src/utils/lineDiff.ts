@@ -10,6 +10,8 @@ export interface ILineDiffOp {
 }
 
 const minInlineSimilarity = 0.5;
+const maxInlineLineTokens = 200;
+const maxInlineTotalChars = 20000;
 
 export type ILineDiffRow = ILineDiffOp | { kind: "skip"; count: number };
 
@@ -122,17 +124,42 @@ function toSpans(ops: ILineDiffOp[], side: "remove" | "add"): ILineDiffSpan[] {
   return spans;
 }
 
+function sharedTokenLength(a: string[], b: string[]): number {
+  const counts = new Map<string, number>();
+  for (const token of a) {
+    counts.set(token, (counts.get(token) ?? 0) + 1);
+  }
+  let shared = 0;
+  for (const token of b) {
+    const count = counts.get(token) ?? 0;
+    if (count > 0) {
+      counts.set(token, count - 1);
+      shared += token.trim().length;
+    }
+  }
+  return shared;
+}
+
+function isSimilarEnough(sharedLength: number, before: string, after: string): boolean {
+  const longest = Math.max(before.trim().length, after.trim().length);
+  return longest > 0 && sharedLength / longest >= minInlineSimilarity;
+}
+
 export function LineDiff_inline(
   before: string,
   after: string
 ): { before: ILineDiffSpan[]; after: ILineDiffSpan[] } | undefined {
-  const ops = myers(tokens(before), tokens(after));
+  const a = tokens(before);
+  const b = tokens(after);
+  if (a.length + b.length > maxInlineLineTokens || !isSimilarEnough(sharedTokenLength(a, b), before, after)) {
+    return undefined;
+  }
+  const ops = myers(a, b);
   if (ops == null) {
     return undefined;
   }
   const sameLength = ops.filter((op) => op.kind === "same").reduce((sum, op) => sum + op.text.trim().length, 0);
-  const longest = Math.max(before.trim().length, after.trim().length);
-  if (longest === 0 || sameLength / longest < minInlineSimilarity) {
+  if (!isSimilarEnough(sameLength, before, after)) {
     return undefined;
   }
   return { before: toSpans(ops, "remove"), after: toSpans(ops, "add") };
@@ -140,6 +167,7 @@ export function LineDiff_inline(
 
 export function LineDiff_withInline(ops: ILineDiffOp[]): ILineDiffOp[] {
   const result = [...ops];
+  let budget = maxInlineTotalChars;
   let i = 0;
   while (i < result.length) {
     if (result[i].kind !== "remove") {
@@ -155,9 +183,10 @@ export function LineDiff_withInline(ops: ILineDiffOp[]): ILineDiffOp[] {
       i += 1;
     }
     const pairs = Math.min(addStart - removeStart, i - addStart);
-    for (let p = 0; p < pairs; p += 1) {
+    for (let p = 0; p < pairs && budget > 0; p += 1) {
       const removed = result[removeStart + p];
       const added = result[addStart + p];
+      budget -= removed.text.length + added.text.length;
       const inline = LineDiff_inline(removed.text, added.text);
       if (inline != null) {
         result[removeStart + p] = { ...removed, spans: inline.before };

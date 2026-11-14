@@ -89,6 +89,19 @@ describe("LineDiff", () => {
     expect(LineDiff_inline("", "")).to.equal(undefined);
   });
 
+  it("stays fast on a large program whose long lines were all rewritten", () => {
+    const words = (seed: string): string =>
+      Array.from({ length: 60 }, (_, i) => `${seed}${(i * 7919) % 1000}`).join(" ");
+    const before = Array.from({ length: 500 }, (_, i) => `// ${words(`a${i}x`)}`).join("\n");
+    const after = Array.from({ length: 500 }, (_, i) => `// ${words(`b${i}y`)}`).join("\n");
+    const startedAt = process.hrtime.bigint();
+    const ops = LineDiff_withInline(LineDiff_diff(before, after));
+    expect(Number(process.hrtime.bigint() - startedAt) / 1e6).to.be.below(500);
+    expect(apply(ops, "before").join("\n")).to.equal(before);
+    expect(apply(ops, "after").join("\n")).to.equal(after);
+    expect(ops.every((op) => op.spans == null)).to.equal(true);
+  });
+
   it("finds the shortest edit", () => {
     const ops = LineDiff_diff("a\nb\nc\nd\ne", "a\nc\nd\ne\nf");
     expect(ops.filter((op) => op.kind !== "same")).to.eql([

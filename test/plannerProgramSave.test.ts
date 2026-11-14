@@ -31,7 +31,7 @@ describe("PlannerProgramSave", () => {
     const friend = { ownerId: "sam", nickname: "Sam", base: "b1", settings: Settings_build() };
 
     it("saves to the friend's account, and to the user's own otherwise", () => {
-      expect(PlannerProgramSave_target(friend)).to.eql({ kind: "friend", ownerId: "sam" });
+      expect(PlannerProgramSave_target(friend)).to.eql({ kind: "friend", ownerId: "sam", loadedBase: "b1" });
       expect(PlannerProgramSave_target(undefined)).to.eql({ kind: "own" });
     });
 
@@ -56,7 +56,6 @@ describe("PlannerProgramSave", () => {
       expect(request.programId).to.equal("p1");
       expect(request.base).to.equal("b2");
       expect(request.text).to.contain("Squat / 3x5 / 100lb");
-      expect(PlannerProgramSave_friendRequest(program, undefined).base).to.equal("");
     });
   });
 });

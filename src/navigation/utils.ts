@@ -3,9 +3,14 @@ import { Program_getProgram } from "../models/program";
 import { untrack } from "./TrackedStateContext";
 import type { IScreen } from "../models/screen";
 import type { IHistoryRecord } from "../types";
+import type { IProgramEditsResponse } from "../models/friendProgram";
 import type { NavigationState } from "@react-navigation/native";
 import { Subscriptions_isEligibleForThanksgivingPromo } from "../utils/subscriptions";
-import { SocialState_pendingRequestCount, SocialState_unseenProgramEdits } from "../models/socialState";
+import {
+  SocialState_pendingRequestCount,
+  SocialState_programEditsFor,
+  SocialState_unseenProgramEdits,
+} from "../models/socialState";
 
 export interface IAdhocRecordParams {
   progressId?: number;
@@ -26,9 +31,15 @@ export function resolveAdhocRecord(state: IState, params: IAdhocRecordParams | u
   return progressId === 0 ? state.storage.progress?.[0] : state.progress[progressId];
 }
 
+export function programEditsOfExistingPrograms(state: IState): IProgramEditsResponse | undefined {
+  const programIds = (state.storage.programs ?? []).map((p) => p.id);
+  return SocialState_programEditsFor(state.social, state.user?.id, programIds);
+}
+
 export function buildNavCommon(state: IState): INavCommon {
   const currentProgram =
     state.storage.currentProgramId != null ? Program_getProgram(state, state.storage.currentProgramId) : undefined;
+  const programEdits = programEditsOfExistingPrograms(state);
   return {
     loading: untrack(state.loading),
     currentProgram: untrack(currentProgram),
@@ -38,8 +49,8 @@ export function buildNavCommon(state: IState): INavCommon {
     stats: untrack(state.storage.stats),
     userId: state.user?.id,
     pendingFollowRequests: SocialState_pendingRequestCount(state.social, state.user?.id),
-    unseenProgramEdits: SocialState_unseenProgramEdits(state.social, state.user?.id),
-    programEdits: state.social?.accountId === state.user?.id ? untrack(state.social?.programEdits) : undefined,
+    unseenProgramEdits: SocialState_unseenProgramEdits(programEdits),
+    programEdits: untrack(programEdits),
   };
 }
 

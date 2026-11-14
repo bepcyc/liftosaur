@@ -5,7 +5,7 @@ import { Text } from "../primitives/text";
 import { IDispatch } from "../../ducks/types";
 import { useNavOptions } from "../../navigation/useNavOptions";
 import { ISocialState } from "../../models/socialState";
-import { Follow_accessSummary, Follow_displayName } from "../../models/follow";
+import { Follow_accessSummary, Follow_displayName, Follow_needsNickname } from "../../models/follow";
 import { Thunk_pushScreen } from "../../ducks/thunks";
 import { Thunk_loadFollows, Thunk_removeFollowRequest } from "../../ducks/socialThunks";
 import { Button } from "../button";
@@ -109,7 +109,7 @@ export function ScreenFriends(props: IProps): JSX.Element {
           </Text>
         </View>
       ) : null}
-      {!isEmpty && !props.nickname?.trim() && (
+      {!isEmpty && Follow_needsNickname(props.nickname) && (
         <View className="p-4 mt-4 border rounded-2xl border-border-cardpurple bg-background-cardpurple">
           <NicknameGate reason="Your friends see you as “A friend” until you set one." dispatch={props.dispatch} />
         </View>

@@ -24,6 +24,7 @@ import { Avatar } from "./avatar";
 function PermissionsCard(props: {
   name?: string;
   permissions: IFollowPermissions;
+  isDisabled?: boolean;
   onChange: (permissions: IFollowPermissions) => void;
 }): JSX.Element {
   return (
@@ -43,6 +44,7 @@ function PermissionsCard(props: {
           </View>
           <Switch
             value={props.permissions.notes}
+            disabled={props.isDisabled}
             testID="follow-permission-notes"
             onValueChange={(value: boolean) => props.onChange(Follow_setPermission(props.permissions, "notes", value))}
           />
@@ -54,6 +56,7 @@ function PermissionsCard(props: {
           </View>
           <Switch
             value={props.permissions.programs}
+            disabled={props.isDisabled}
             testID="follow-permission-programs"
             onValueChange={(value: boolean) =>
               props.onChange(Follow_setPermission(props.permissions, "programs", value))
@@ -69,6 +72,7 @@ function PermissionsCard(props: {
           </View>
           <Switch
             value={props.permissions.programEdits}
+            disabled={props.isDisabled}
             testID="follow-permission-program-edits"
             onValueChange={(value: boolean) =>
               props.onChange(Follow_setPermission(props.permissions, "programEdits", value))
@@ -149,6 +153,7 @@ export function ScreenFriendFollower(props: {
   dispatch: IDispatch;
 }): JSX.Element {
   useNavOptions({ navTitle: "Follower" });
+  const [isSaving, setIsSaving] = useState(false);
   const follower = props.social?.follows?.followers.find((f) => f.userId === props.userId);
   if (follower == null) {
     return (
@@ -164,7 +169,15 @@ export function ScreenFriendFollower(props: {
       <PermissionsCard
         name={follower.nickname}
         permissions={follower.permissions}
-        onChange={(permissions) => props.dispatch(Thunk_setFollowerPermissions(follower.userId, permissions))}
+        isDisabled={isSaving}
+        onChange={async (permissions) => {
+          setIsSaving(true);
+          try {
+            await props.dispatch(Thunk_setFollowerPermissions(follower.userId, permissions));
+          } finally {
+            setIsSaving(false);
+          }
+        }}
       />
       <View className="w-full mt-8">
         <Button

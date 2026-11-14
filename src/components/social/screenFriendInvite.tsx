@@ -9,6 +9,7 @@ import { IconSpinner } from "../icons/iconSpinner";
 import { LinkShare_share } from "../../utils/linkShare";
 import { Avatar } from "./avatar";
 import { NicknameGate } from "./nicknameGate";
+import { Follow_needsNickname } from "../../models/follow";
 import { IDispatch } from "../../ducks/types";
 
 interface IProps {
@@ -22,7 +23,7 @@ type IInviteStatus = { kind: "loading" } | { kind: "ready"; url: string } | { ki
 
 export function ScreenFriendInvite(props: IProps): JSX.Element {
   useNavOptions({ navTitle: "Invite a friend" });
-  if (!props.nickname?.trim()) {
+  if (props.nickname == null || Follow_needsNickname(props.nickname)) {
     return (
       <View className="flex-1 pt-6 px-gutter">
         <NicknameGate reason="Your friend sees it on the invite and in their friends list." dispatch={props.dispatch} />

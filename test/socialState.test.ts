@@ -18,6 +18,11 @@ import {
   SocialState_unseenProgramEdits,
   SocialState_hasUnseenEditsFor,
   SocialState_unseenEditsInOtherPrograms,
+  SocialState_programEditsFor,
+  SocialState_programEditsKey,
+  SocialState_failProgramEditsFor,
+  SocialState_startFriendLoad,
+  SocialState_applyProgramEditsFor,
   SocialState_applyFriendProgram,
   SocialState_applyFriendPrograms,
   SocialState_applyFollows,
@@ -160,14 +165,23 @@ describe("SocialState", () => {
     };
 
     it("counts unseen edits for the signed-in account only, and ignores another account's response", () => {
+      const ids = ["p1", "p2"];
       const state = SocialState_applyProgramEdits(SocialState_empty("me"), edits, now);
-      expect(SocialState_unseenProgramEdits(state, "me")).to.equal(2);
-      expect(SocialState_unseenProgramEdits(state, "other")).to.equal(0);
+      expect(SocialState_unseenProgramEdits(SocialState_programEditsFor(state, "me", ids))).to.equal(2);
+      expect(SocialState_unseenProgramEdits(SocialState_programEditsFor(state, "other", ids))).to.equal(0);
       const foreign = SocialState_applyProgramEdits(SocialState_empty("me"), { ...edits, accountId: "x" }, now);
-      expect(SocialState_unseenProgramEdits(foreign, "me")).to.equal(0);
+      expect(SocialState_unseenProgramEdits(SocialState_programEditsFor(foreign, "me", ids))).to.equal(0);
     });
 
-    it("writes the program line for recent edits, and hides edits older than 30 days", () => {
+    it("ignores edits to programs the owner deleted, and keeps the same object when none were", () => {
+      const state = SocialState_applyProgramEdits(SocialState_empty("me"), edits, now);
+      const withoutP1 = SocialState_programEditsFor(state, "me", ["p2"]);
+      expect(withoutP1?.programs.map((p) => p.programId)).to.eql(["p2"]);
+      expect(SocialState_unseenProgramEdits(withoutP1)).to.equal(0);
+      expect(SocialState_programEditsFor(state, "me", ["p1", "p2"])).to.equal(state.programEdits);
+    });
+
+    it("writes the program line for recent edits, and hides seen edits older than 30 days", () => {
       const state = SocialState_applyProgramEdits(SocialState_empty("me"), edits, now);
       expect(SocialState_programEditLine(state.programEdits, "p1", now)).to.eql({
         text: "Sam edited this program · 2h ago",
@@ -175,6 +189,11 @@ describe("SocialState", () => {
       });
       expect(SocialState_programEditLine(state.programEdits, "p2", now)).to.equal(undefined);
       expect(SocialState_programEditLine(state.programEdits, "p3", now)).to.equal(undefined);
+    });
+
+    it("keeps the line for unseen edits older than 30 days, so their dot can be cleared", () => {
+      const oldUnseen = { ...edits, programs: [{ ...edits.programs[1], unseen: 1 }] };
+      expect(SocialState_programEditLine(oldUnseen, "p2", now)?.isUnseen).to.equal(true);
     });
 
     it("refreshes after the TTL", () => {
@@ -233,6 +252,17 @@ describe("SocialState", () => {
       expect(SocialState_failFriendPrograms(state, "sam", "network").friendErrors.sam).to.contain("connection");
       state = SocialState_applyFriendProgram(state, context);
       expect(state.friendErrors[key]).to.equal(undefined);
+    });
+
+    it("shows a retryable error for the changes list, and clears it when a load starts or succeeds", () => {
+      const key = SocialState_programEditsKey("p1");
+      const failed = SocialState_failProgramEditsFor(SocialState_empty("me"), "p1", "network");
+      expect(failed.friendErrors[key]).to.contain("connection");
+      expect(SocialState_failProgramEditsFor(failed, "p1", "http500").friendErrors[key]).to.contain("Try again");
+      expect(SocialState_startFriendLoad(failed, key).friendErrors[key]).to.equal(undefined);
+      const loaded = SocialState_applyProgramEditsFor(failed, { accountId: "me", programId: "p1", edits: [] });
+      expect(loaded.friendErrors[key]).to.equal(undefined);
+      expect(loaded.programEditsByProgram.p1).to.eql([]);
     });
 
     it("drops cached programs of people who stopped sharing them", () => {

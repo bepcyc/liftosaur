@@ -10,7 +10,7 @@ export interface IPlannerFriendTarget {
   settings: ISettings;
 }
 
-export type IPlannerSaveTarget = { kind: "own" } | { kind: "friend"; ownerId: string };
+export type IPlannerSaveTarget = { kind: "own" } | { kind: "friend"; ownerId: string; loadedBase: string };
 
 export interface IPlannerCapabilities {
   canSaveSettings: boolean;
@@ -21,7 +21,9 @@ export interface IPlannerCapabilities {
 }
 
 export function PlannerProgramSave_target(friendTarget: IPlannerFriendTarget | undefined): IPlannerSaveTarget {
-  return friendTarget != null ? { kind: "friend", ownerId: friendTarget.ownerId } : { kind: "own" };
+  return friendTarget != null
+    ? { kind: "friend", ownerId: friendTarget.ownerId, loadedBase: friendTarget.base }
+    : { kind: "own" };
 }
 
 export function PlannerProgramSave_capabilities(
@@ -43,12 +45,12 @@ export function PlannerProgramSave_capabilities(
 
 export function PlannerProgramSave_friendRequest(
   program: IProgram,
-  base: string | undefined
+  base: string
 ): { programId: string; text: string; base: string } {
   return {
     programId: program.id,
     text: PlannerProgram_generateFullText(program.planner?.weeks ?? []),
-    base: base ?? "",
+    base,
   };
 }
 

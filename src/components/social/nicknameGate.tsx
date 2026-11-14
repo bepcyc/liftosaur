@@ -6,7 +6,7 @@ import { TextInput } from "../primitives/textInput";
 import { Button } from "../button";
 import { IDispatch } from "../../ducks/types";
 import { ISettings } from "../../types";
-import { Follow_maxNicknameLength, Follow_nicknameError } from "../../models/follow";
+import { Follow_maxNicknameLength, Follow_parseNickname } from "../../models/follow";
 import { Tailwind_semantic } from "../../utils/tailwindConfig";
 
 interface IProps {
@@ -19,15 +19,17 @@ export function NicknameGate(props: IProps): JSX.Element {
   const [error, setError] = useState<string | undefined>(undefined);
 
   const save = (): void => {
-    const nextError = Follow_nicknameError(text);
-    setError(nextError);
-    if (nextError == null) {
-      props.dispatch({
-        type: "UpdateSettings",
-        lensRecording: lb<ISettings>().p("nickname").record(text.trim()),
-        desc: "Set nickname for friends",
-      });
+    const parsed = Follow_parseNickname(text);
+    if ("error" in parsed) {
+      setError(parsed.error);
+      return;
     }
+    setError(undefined);
+    props.dispatch({
+      type: "UpdateSettings",
+      lensRecording: lb<ISettings>().p("nickname").record(parsed.nickname),
+      desc: "Set nickname for friends",
+    });
   };
 
   return (

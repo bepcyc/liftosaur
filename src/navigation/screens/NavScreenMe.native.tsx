@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { View } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import { useTrackedState, useTrackedDispatch, untrack } from "../TrackedStateContext";
-import { buildNavCommon } from "../utils";
+import { buildNavCommon, programEditsOfExistingPrograms } from "../utils";
 import { NavScreenContent } from "../NavScreenContent";
 import { ScreenSettings as ScreenSettingsComponent } from "../../components/screenSettings";
 import { ScreenTimers as ScreenTimersComponent } from "../../components/screenTimers";
@@ -42,7 +42,7 @@ export function NavScreenSettings(): React.JSX.Element {
   const currentProgram = untrack(currentProgramId != null ? Program_getProgram(state, currentProgramId) : undefined);
   const isOngoingProgress = (state.storage.progress?.length ?? 0) > 0;
   const pendingFollowRequests = SocialState_pendingRequestCount(state.social, state.user?.id);
-  const unseenProgramEdits = SocialState_unseenProgramEdits(state.social, state.user?.id);
+  const unseenProgramEdits = SocialState_unseenProgramEdits(programEditsOfExistingPrograms(state));
   const navCommon = useMemo(
     () => ({
       loading,

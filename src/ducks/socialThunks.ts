@@ -25,6 +25,10 @@ import {
   SocialState_hasUnseenEditsFor,
   SocialState_failFriendPrograms,
   SocialState_failFriendProgram,
+  SocialState_failProgramEditsFor,
+  SocialState_friendProgramKey,
+  SocialState_programEditsKey,
+  SocialState_startFriendLoad,
 } from "../models/socialState";
 import { IFollowsResponse, IFollowPermissions } from "../models/follow";
 import { FeedWorkout_key } from "../models/feedWorkout";
@@ -260,6 +264,7 @@ export function Thunk_loadFriendPrograms(ownerId: string): IThunk {
     if (accountId == null) {
       return;
     }
+    modifySocial(dispatch, accountId, "Friend programs loading", (s) => SocialState_startFriendLoad(s, ownerId));
     const result = await env.service.getFriendPrograms(ownerId);
     modifySocial(dispatch, accountId, "Friend programs", (s) =>
       result.success
@@ -275,6 +280,9 @@ export function Thunk_loadFriendProgram(ownerId: string, programId: string): ITh
     if (accountId == null) {
       return;
     }
+    modifySocial(dispatch, accountId, "Friend program loading", (s) =>
+      SocialState_startFriendLoad(s, SocialState_friendProgramKey(ownerId, programId))
+    );
     const result = await env.service.getFriendProgram(ownerId, programId);
     modifySocial(dispatch, accountId, "Friend program", (s) =>
       result.success
@@ -304,8 +312,15 @@ export function Thunk_loadProgramEditsFor(programId: string): IThunk {
     if (accountId == null) {
       return;
     }
+    modifySocial(dispatch, accountId, "Program edits loading", (s) =>
+      SocialState_startFriendLoad(s, SocialState_programEditsKey(programId))
+    );
     const result = await env.service.getProgramEditsFor(programId);
-    if (result.success) {
+    if (!result.success) {
+      modifySocial(dispatch, accountId, "Program edits failed", (s) =>
+        SocialState_failProgramEditsFor(s, programId, result.error)
+      );
+    } else {
       modifySocial(dispatch, accountId, "Program edits for program", (s) =>
         SocialState_applyProgramEditsFor(s, result.data)
       );

@@ -270,10 +270,25 @@ export function SocialState_applyFriendProgram(state: ISocialState, context: IFr
   };
 }
 
+const connectionMessage = "Couldn't load. Check your connection and try again.";
+
 function friendLoadMessage(error: string): string {
-  return error === "network"
-    ? "Couldn't load. Check your connection and try again."
-    : "Couldn't load. It may not be shared with you anymore.";
+  return error === "network" ? connectionMessage : "Couldn't load. It may not be shared with you anymore.";
+}
+
+export function SocialState_programEditsKey(programId: string): string {
+  return `edits:${programId}`;
+}
+
+export function SocialState_startFriendLoad(state: ISocialState, key: string): ISocialState {
+  return state.friendErrors[key] == null
+    ? state
+    : { ...state, friendErrors: { ...state.friendErrors, [key]: undefined } };
+}
+
+export function SocialState_failProgramEditsFor(state: ISocialState, programId: string, error: string): ISocialState {
+  const message = error === "network" ? connectionMessage : "Couldn't load the changes. Try again.";
+  return { ...state, friendErrors: { ...state.friendErrors, [SocialState_programEditsKey(programId)]: message } };
 }
 
 export function SocialState_failFriendPrograms(state: ISocialState, ownerId: string, error: string): ISocialState {
@@ -313,7 +328,11 @@ export function SocialState_applyProgramEditsFor(state: ISocialState, response: 
   if (response.accountId !== state.accountId) {
     return state;
   }
-  return { ...state, programEditsByProgram: { ...state.programEditsByProgram, [response.programId]: response.edits } };
+  return {
+    ...state,
+    programEditsByProgram: { ...state.programEditsByProgram, [response.programId]: response.edits },
+    friendErrors: { ...state.friendErrors, [SocialState_programEditsKey(response.programId)]: undefined },
+  };
 }
 
 export function SocialState_isProgramEditsStale(state: ISocialState | undefined, now: number): boolean {
@@ -321,8 +340,25 @@ export function SocialState_isProgramEditsStale(state: ISocialState | undefined,
   return loadedAt == null || now - loadedAt > SocialState_pageTtlMs;
 }
 
-export function SocialState_unseenProgramEdits(state: ISocialState | undefined, accountId: string | undefined): number {
-  return state != null && state.accountId === accountId ? (state.programEdits?.unseenCount ?? 0) : 0;
+export function SocialState_programEditsFor(
+  state: ISocialState | undefined,
+  accountId: string | undefined,
+  programIds: string[]
+): IProgramEditsResponse | undefined {
+  const programEdits = state != null && state.accountId === accountId ? state.programEdits : undefined;
+  if (programEdits == null) {
+    return undefined;
+  }
+  const existing = new Set(programIds);
+  const programs = programEdits.programs.filter((p) => existing.has(p.programId));
+  if (programs.length === programEdits.programs.length) {
+    return programEdits;
+  }
+  return { ...programEdits, programs, unseenCount: programs.reduce((sum, p) => sum + p.unseen, 0) };
+}
+
+export function SocialState_unseenProgramEdits(programEdits: IProgramEditsResponse | undefined): number {
+  return programEdits?.unseenCount ?? 0;
 }
 
 export function SocialState_hasUnseenEditsFor(
@@ -356,7 +392,7 @@ export function SocialState_programEditLine(
   now: number
 ): IProgramEditLine | undefined {
   const summary = programEdits?.programs.find((p) => p.programId === programId);
-  if (summary == null || now - summary.latest.createdAt > recentEditMs) {
+  if (summary == null || (summary.unseen === 0 && now - summary.latest.createdAt > recentEditMs)) {
     return undefined;
   }
   const name = Follow_displayName(summary.latest.nickname);
