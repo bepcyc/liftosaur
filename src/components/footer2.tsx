@@ -70,7 +70,7 @@ export function Footer2View(props: IFooterProps): JSX.Element {
           name="program"
           currentTab={currentTab}
           icon={(isActive) => <IconDoc2 isSelected={isActive} />}
-          hasDot={hasErrorsInProgram}
+          hasDot={hasErrorsInProgram || (props.navCommon.unseenProgramEdits ?? 0) > 0}
           text="Program"
           onClick={() => props.dispatch(Thunk_pushToEditProgram())}
         />

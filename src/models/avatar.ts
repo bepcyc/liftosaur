@@ -1,9 +1,9 @@
 export const Avatar_paletteSize = 8;
 
-export function Avatar_initials(nickname: string | undefined, fallback: string): string {
+export function Avatar_initials(nickname: string | undefined): string {
   const source = (nickname || "").trim();
   if (source.length === 0) {
-    return fallback.slice(0, 2).toUpperCase();
+    return "?";
   }
   const words = source.split(/[\s._-]+/).filter((w) => w.length > 0);
   if (words.length >= 2) {

@@ -36,6 +36,7 @@ import type { IWorkoutMirroring } from "../utils/workoutMirroring";
 import type { IHeartRateStore } from "../utils/heartRateStore";
 import type { ILoginConflictRequest, LoginConflictPrompt } from "../utils/loginConflictPrompt";
 import type { ISocialState } from "./socialState";
+import type { IProgramEditsResponse } from "./friendProgram";
 
 export type IEnv = {
   service: Service;
@@ -70,6 +71,8 @@ export interface INavCommon {
   stats: IStats;
   settings: ISettings;
   pendingFollowRequests?: number;
+  unseenProgramEdits?: number;
+  programEdits?: IProgramEditsResponse;
 }
 
 export interface ILoadingItem {

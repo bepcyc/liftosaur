@@ -8,6 +8,18 @@ import { Settings_build } from "../src/models/settings";
 import { FriendsFixtures_entry, FriendsFixtures_record } from "./friendsFixtures";
 import { FollowInviteLink_token } from "../src/models/followInviteLink";
 import { RelativeTime_ago } from "../src/utils/relativeTime";
+import {
+  Follow_accessSummary,
+  Follow_applyPermissionsPatch,
+  Follow_defaultPermissions,
+  Follow_displayName,
+  Follow_normalizePermissions,
+  Follow_parsePermissions,
+  Follow_parsePermissionsPatch,
+  Follow_setPermission,
+} from "../src/models/follow";
+import { FriendProgram_previewSettings } from "../src/models/friendProgram";
+import { Exercise_createCustomExercise } from "../src/models/exercise";
 
 function follow(overrides: Partial<IFollowDao> = {}): IFollowDao {
   return {
@@ -15,7 +27,7 @@ function follow(overrides: Partial<IFollowDao> = {}): IFollowDao {
     followeeId: "b",
     status: "approved",
     requestId: "r1",
-    permissions: { notes: false },
+    permissions: { notes: false, programs: false, programEdits: false },
     createdAt: 1,
     ...overrides,
   };
@@ -23,14 +35,20 @@ function follow(overrides: Partial<IFollowDao> = {}): IFollowDao {
 
 describe("Avatar", () => {
   it("takes initials from two words or the first two letters", () => {
-    expect(Avatar_initials("marcus west", "x")).to.equal("MW");
-    expect(Avatar_initials("priyalifts", "x")).to.equal("PR");
-    expect(Avatar_initials("j", "x")).to.equal("J");
+    expect(Avatar_initials("marcus west")).to.equal("MW");
+    expect(Avatar_initials("priyalifts")).to.equal("PR");
+    expect(Avatar_initials("j")).to.equal("J");
   });
 
-  it("falls back to the given id when there is no nickname", () => {
-    expect(Avatar_initials(undefined, "k7q2p5x9m3")).to.equal("K7");
-    expect(Avatar_initials("   ", "b4n6")).to.equal("B4");
+  it("shows a question mark without a nickname, never part of the user id", () => {
+    expect(Avatar_initials(undefined)).to.equal("?");
+    expect(Avatar_initials("   ")).to.equal("?");
+  });
+
+  it("names a friend without a nickname 'A friend'", () => {
+    expect(Follow_displayName(undefined)).to.equal("A friend");
+    expect(Follow_displayName("  ")).to.equal("A friend");
+    expect(Follow_displayName("Sam")).to.equal("Sam");
   });
 
   it("picks a stable color from the seed", () => {
@@ -93,11 +111,12 @@ describe("RelativeTime_ago", () => {
 
 describe("FollowAccess", () => {
   it("gives the owner full access", () => {
-    expect(FollowAccess_permissions("b", "b", undefined)).to.eql({ notes: true });
+    expect(FollowAccess_permissions("b", "b", undefined)).to.eql({ notes: true, programs: true, programEdits: true });
   });
 
   it("gives an approved follower the stored permissions", () => {
-    expect(FollowAccess_permissions("a", "b", follow({ permissions: { notes: true } }))).to.eql({ notes: true });
+    const permissions = { notes: true, programs: true, programEdits: false };
+    expect(FollowAccess_permissions("a", "b", follow({ permissions }))).to.eql(permissions);
   });
 
   it("denies a pending follower, a stranger and a mismatched row", () => {
@@ -113,5 +132,70 @@ describe("FollowAccess", () => {
     expect(FollowAccess_canDecide("a", pending)).to.equal("cancel");
     expect(FollowAccess_canDecide("c", pending)).to.equal(undefined);
     expect(FollowAccess_canDecide("b", follow())).to.equal(undefined);
+  });
+});
+
+describe("Follow permissions", () => {
+  it("parses rows saved before program permissions existed as no program access", () => {
+    expect(Follow_parsePermissions({ notes: true })).to.eql({ notes: true, programs: false, programEdits: false });
+    expect(Follow_parsePermissions({ programs: true })).to.equal(undefined);
+    expect(Follow_parsePermissions("yes")).to.equal(undefined);
+  });
+
+  it("turns on seeing programs with editing them", () => {
+    expect(Follow_parsePermissions({ notes: false, programEdits: true })).to.eql({
+      notes: false,
+      programs: true,
+      programEdits: true,
+    });
+    expect(Follow_normalizePermissions({ notes: false, programs: false, programEdits: true }).programs).to.equal(true);
+  });
+
+  it("turns off editing programs with seeing them", () => {
+    const all = { notes: true, programs: true, programEdits: true };
+    expect(Follow_setPermission(all, "programs", false)).to.eql({ notes: true, programs: false, programEdits: false });
+    expect(Follow_setPermission(all, "programEdits", false)).to.eql({
+      notes: true,
+      programs: true,
+      programEdits: false,
+    });
+    expect(Follow_setPermission(Follow_defaultPermissions, "programEdits", true).programs).to.equal(true);
+  });
+
+  it("keeps permissions an older client does not send", () => {
+    const all = { notes: true, programs: true, programEdits: true };
+    const fromOldClient = Follow_parsePermissionsPatch({ notes: false, future: "ignored" });
+    expect(fromOldClient).to.eql({ notes: false });
+    expect(Follow_applyPermissionsPatch(all, fromOldClient ?? {})).to.eql({ ...all, notes: false });
+    expect(Follow_applyPermissionsPatch(all, { programs: false }).programEdits).to.equal(false);
+    expect(Follow_parsePermissionsPatch({ notes: "yes" })).to.equal(undefined);
+    expect(Follow_parsePermissionsPatch({})).to.equal(undefined);
+  });
+
+  it("summarizes what a follower has access to", () => {
+    expect(Follow_accessSummary(Follow_defaultPermissions)).to.equal("Sees workouts");
+    expect(Follow_accessSummary({ notes: true, programs: false, programEdits: false })).to.equal(
+      "Sees workouts and notes"
+    );
+    expect(Follow_accessSummary({ notes: true, programs: true, programEdits: true })).to.equal(
+      "Sees workouts, notes and programs, edits programs"
+    );
+  });
+});
+
+describe("FriendProgram_previewSettings", () => {
+  it("computes weights from the owner's units, 1RMs and custom exercises, keeping the viewer's own preferences", () => {
+    const viewer = { ...Settings_build("lb"), theme: "dark" as const };
+    const custom = Exercise_createCustomExercise("Zercher Squat", [], [], []);
+    const owner = {
+      ...Settings_build("kg"),
+      exercises: { [custom.id]: custom },
+      exerciseData: { squat_barbell: { rm1: { value: 180, unit: "kg" as const } } },
+    };
+    const settings = FriendProgram_previewSettings(viewer, owner);
+    expect(settings.units).to.equal("kg");
+    expect(settings.exercises[custom.id]?.name).to.equal("Zercher Squat");
+    expect(settings.exerciseData.squat_barbell?.rm1?.value).to.equal(180);
+    expect(settings.theme).to.equal("dark");
   });
 });

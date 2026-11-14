@@ -10,6 +10,9 @@ import { ScreenFollowInvite } from "../../components/social/screenFollowInvite";
 import { ScreenFriendFollower, ScreenFriendRequest } from "../../components/social/screenFriendRequest";
 import { ScreenFriendProfile } from "../../components/social/screenFriendProfile";
 import { ScreenFeedFilter } from "../../components/social/screenFeedFilter";
+import { ScreenFriendPrograms } from "../../components/social/screenFriendPrograms";
+import { ScreenFriendProgram } from "../../components/social/screenFriendProgram";
+import { ScreenProgramEdits } from "../../components/social/screenProgramEdits";
 import { SocialState_forAccount } from "../../models/socialState";
 import type { IAllScreenParamList } from "../types";
 
@@ -96,6 +99,50 @@ export function NavScreenFriendProfile(): JSX.Element {
         dispatch={dispatch}
       />
     </View>
+  );
+}
+
+export function NavScreenFriendPrograms(): JSX.Element {
+  const dispatch = useTrackedDispatch();
+  const social = useSocial();
+  const params = useParams<"friendPrograms">();
+  return (
+    <NavScreenContent>
+      <ScreenFriendPrograms userId={params.userId} social={social} dispatch={dispatch} />
+    </NavScreenContent>
+  );
+}
+
+export function NavScreenFriendProgram(): JSX.Element {
+  const state = useTrackedState();
+  const dispatch = useTrackedDispatch();
+  const social = useSocial();
+  const params = useParams<"friendProgram">();
+  return (
+    <View className="flex-1 bg-background-default">
+      <ScreenFriendProgram
+        userId={params.userId}
+        programId={params.programId}
+        social={social}
+        settings={untrack(state.storage.settings)}
+        stats={untrack(state.storage.stats)}
+        subscription={untrack(state.storage.subscription)}
+        dispatch={dispatch}
+      />
+    </View>
+  );
+}
+
+export function NavScreenProgramEdits(): JSX.Element {
+  const state = useTrackedState();
+  const dispatch = useTrackedDispatch();
+  const social = useSocial();
+  const params = useParams<"programEdits">();
+  const programName = state.storage.programs.find((p) => p.id === params.programId)?.name;
+  return (
+    <NavScreenContent>
+      <ScreenProgramEdits programId={params.programId} programName={programName} social={social} dispatch={dispatch} />
+    </NavScreenContent>
   );
 }
 

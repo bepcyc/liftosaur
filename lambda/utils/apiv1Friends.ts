@@ -9,6 +9,9 @@ import { FriendRecord_project } from "../../src/models/friendRecord";
 import { IApiFriend, IFollowPermissions } from "../../src/models/follow";
 import { LiftohistorySerializer_serialize } from "../../src/liftohistory/liftohistorySerializer";
 import { IHistoryRecord, ISettings } from "../../src/types";
+import { FriendPrograms_get, FriendPrograms_list, FriendPrograms_update } from "./friendPrograms";
+import { IFriendProgramSummary } from "../../src/models/friendProgram";
+import { PlannerProgram_generateFullText } from "../../src/pages/planner/models/plannerProgram";
 
 export interface IFriendHistoryPage {
   ownerId: string;
@@ -91,4 +94,60 @@ export async function ApiV1_getFriendHistoryRecord(
     return err(404, "not_found", "History record not found");
   }
   return { success: true, data: { ownerId: friendId, id: record.id, text: serialize(record, access.data) } };
+}
+
+export async function ApiV1_listFriendPrograms(
+  viewerId: string,
+  friendId: string,
+  di: IDI
+): Promise<IApiResult<{ ownerId: string; programs: IFriendProgramSummary[] }>> {
+  const result = await FriendPrograms_list(di, viewerId, friendId);
+  return result.success ? { success: true, data: { ownerId: friendId, ...result.data } } : result;
+}
+
+export async function ApiV1_getFriendProgram(
+  viewerId: string,
+  friendId: string,
+  programId: string,
+  di: IDI
+): Promise<
+  IApiResult<{
+    ownerId: string;
+    id: string;
+    name: string;
+    isCurrent: boolean;
+    canEdit: boolean;
+    text: string;
+    base: string;
+  }>
+> {
+  const result = await FriendPrograms_get(di, viewerId, friendId, programId);
+  if (!result.success) {
+    return result;
+  }
+  const { exported, base, canEdit, isCurrent } = result.data;
+  return {
+    success: true,
+    data: {
+      ownerId: friendId,
+      id: exported.program.id,
+      name: exported.program.name,
+      isCurrent,
+      canEdit,
+      text: PlannerProgram_generateFullText(exported.program.planner?.weeks ?? []),
+      base,
+    },
+  };
+}
+
+export async function ApiV1_updateFriendProgram(
+  viewerId: string,
+  friendId: string,
+  programId: string,
+  text: unknown,
+  base: unknown,
+  di: IDI
+): Promise<IApiResult<{ ownerId: string; id: string; base: string }>> {
+  const result = await FriendPrograms_update(di, viewerId, friendId, programId, { text, base });
+  return result.success ? { success: true, data: { ownerId: friendId, ...result.data } } : result;
 }

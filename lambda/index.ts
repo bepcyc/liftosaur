@@ -29,9 +29,19 @@ import {
   IFollowsError,
 } from "./utils/follows";
 import { Feed_load, Feed_summarizeReactions } from "./utils/feed";
+import {
+  FriendPrograms_editorContext,
+  FriendPrograms_get,
+  FriendPrograms_list,
+  FriendPrograms_listEdits,
+  FriendPrograms_listEditsFor,
+  FriendPrograms_markEditsSeen,
+  FriendPrograms_update,
+} from "./utils/friendPrograms";
+import type { IApiError } from "./utils/apiv1";
 import { FollowAccess_canReact } from "./utils/followAccess";
 import { FollowInvitePage_html } from "./followInvitePage";
-import { Follow_defaultPermissions, Follow_parsePermissions } from "../src/models/follow";
+import { Follow_defaultPermissions, Follow_parsePermissions, Follow_parsePermissionsPatch } from "../src/models/follow";
 import { IReactionSummary, Reactions_isReaction } from "../src/models/reactions";
 import { FeedWorkout_key } from "../src/models/feedWorkout";
 import { RecordShare_settingsWithoutNotes, RecordShare_withoutNotes } from "../src/models/recordShare";
@@ -120,7 +130,7 @@ import { CouponDao } from "./dao/couponDao";
 import { DebugDao } from "./dao/debugDao";
 import { adminDebugPrefix } from "../src/models/adminDebug";
 import { Updates_handleManifest } from "./updates/manifestHandler";
-import { renderPlannerHtml } from "./planner";
+import { renderFriendPlannerHtml, renderPlannerHtml } from "./planner";
 import { ExceptionDao } from "./dao/exceptionDao";
 import { UrlUtils_build, UrlUtils_buildSafe } from "../src/utils/url";
 import { RollbarUtils_checkIgnore } from "../src/utils/rollbar";
@@ -199,6 +209,12 @@ import {
   getV1FriendHistoryHandler,
   getV1FriendHistoryRecordEndpoint,
   getV1FriendHistoryRecordHandler,
+  getV1FriendProgramsEndpoint,
+  getV1FriendProgramsHandler,
+  getV1FriendProgramEndpoint,
+  getV1FriendProgramHandler,
+  putV1FriendProgramEndpoint,
+  putV1FriendProgramHandler,
   getV1ProgramsEndpoint,
   getV1ProgramsHandler,
   getV1DashboardsEndpoint,
@@ -2634,11 +2650,11 @@ const putFollowerPermissionsHandler: RouteHandler<
   if (!userId) {
     return ResponseUtils_json(401, event, { error: "Not authenticated" });
   }
-  const permissions = Follow_parsePermissions(getBodyJson(event)?.permissions);
-  if (permissions == null) {
+  const patch = Follow_parsePermissionsPatch(getBodyJson(event)?.permissions);
+  if (patch == null) {
     return ResponseUtils_json(400, event, { error: "Invalid permissions" });
   }
-  const result = await Follows_setPermissions(di, userId, params.userId, permissions);
+  const result = await Follows_setPermissions(di, userId, params.userId, patch);
   if (!result.success) {
     return ResponseUtils_json(followsErrorStatus(result.error), event, { error: result.error });
   }
@@ -2686,6 +2702,98 @@ const getFeedHandler: RouteHandler<IPayload, APIGatewayProxyResult, typeof getFe
   const owners = params.owners != null ? params.owners.split(",").filter((o) => o.length > 0) : undefined;
   const feed = await Feed_load(di, userId, { cursor: params.cursor, owners, limit: params.limit ?? 20 });
   return ResponseUtils_json(200, event, { data: feed });
+};
+
+function apiResultToJson<T>(event: APIGatewayProxyEvent, result: IEither<T, IApiError>): APIGatewayProxyResult {
+  return result.success
+    ? ResponseUtils_json(200, event, { data: result.data })
+    : ResponseUtils_json(result.error.status, event, { error: result.error.message, code: result.error.code });
+}
+
+const getFriendProgramsEndpoint = Endpoint.build("/api/friends/:userId/programs");
+const getFriendProgramsHandler: RouteHandler<
+  IPayload,
+  APIGatewayProxyResult,
+  typeof getFriendProgramsEndpoint
+> = async ({ payload, match: { params } }) => {
+  const { event, di } = payload;
+  const userId = await getCurrentUserId(event, di);
+  if (!userId) {
+    return ResponseUtils_json(401, event, { error: "Not authenticated" });
+  }
+  return apiResultToJson(event, await FriendPrograms_list(di, userId, params.userId));
+};
+
+const getFriendProgramEndpoint = Endpoint.build("/api/friends/:userId/programs/:id");
+const getFriendProgramHandler: RouteHandler<IPayload, APIGatewayProxyResult, typeof getFriendProgramEndpoint> = async ({
+  payload,
+  match: { params },
+}) => {
+  const { event, di } = payload;
+  const userId = await getCurrentUserId(event, di);
+  if (!userId) {
+    return ResponseUtils_json(401, event, { error: "Not authenticated" });
+  }
+  return apiResultToJson(event, await FriendPrograms_get(di, userId, params.userId, params.id));
+};
+
+const postFriendProgramEndpoint = Endpoint.build("/api/friends/:userId/programs/:id");
+const postFriendProgramHandler: RouteHandler<
+  IPayload,
+  APIGatewayProxyResult,
+  typeof postFriendProgramEndpoint
+> = async ({ payload, match: { params } }) => {
+  const { event, di } = payload;
+  const userId = await getCurrentUserId(event, di);
+  if (!userId) {
+    return ResponseUtils_json(401, event, { error: "Not authenticated" });
+  }
+  const body = getBodyJson(event) ?? {};
+  return apiResultToJson(
+    event,
+    await FriendPrograms_update(di, userId, params.userId, params.id, { text: body.text, base: body.base })
+  );
+};
+
+const getProgramEditsEndpoint = Endpoint.build("/api/program-edits");
+const getProgramEditsHandler: RouteHandler<IPayload, APIGatewayProxyResult, typeof getProgramEditsEndpoint> = async ({
+  payload,
+}) => {
+  const { event, di } = payload;
+  const userId = await getCurrentUserId(event, di);
+  if (!userId) {
+    return ResponseUtils_json(401, event, { error: "Not authenticated" });
+  }
+  return ResponseUtils_json(200, event, { data: await FriendPrograms_listEdits(di, userId) });
+};
+
+const getProgramEditsForProgramEndpoint = Endpoint.build("/api/program-edits/:programId");
+const getProgramEditsForProgramHandler: RouteHandler<
+  IPayload,
+  APIGatewayProxyResult,
+  typeof getProgramEditsForProgramEndpoint
+> = async ({ payload, match: { params } }) => {
+  const { event, di } = payload;
+  const userId = await getCurrentUserId(event, di);
+  if (!userId) {
+    return ResponseUtils_json(401, event, { error: "Not authenticated" });
+  }
+  return ResponseUtils_json(200, event, { data: await FriendPrograms_listEditsFor(di, userId, params.programId) });
+};
+
+const postProgramEditsSeenEndpoint = Endpoint.build("/api/program-edits/seen");
+const postProgramEditsSeenHandler: RouteHandler<
+  IPayload,
+  APIGatewayProxyResult,
+  typeof postProgramEditsSeenEndpoint
+> = async ({ payload }) => {
+  const { event, di } = payload;
+  const userId = await getCurrentUserId(event, di);
+  if (!userId) {
+    return ResponseUtils_json(401, event, { error: "Not authenticated" });
+  }
+  await FriendPrograms_markEditsSeen(di, userId, getBodyJson(event)?.programId);
+  return ResponseUtils_json(200, event, { data: await FriendPrograms_listEdits(di, userId) });
 };
 
 const getOwnReactionsEndpoint = Endpoint.build("/api/reactions", { ids: "string" });
@@ -3571,6 +3679,38 @@ const getPlannerHandler: RouteHandler<IPayload, APIGatewayProxyResult, typeof ge
     statusCode: 200,
     body: renderPlannerHtml(di.fetch, initialProgram, account, storage, userAgent),
     headers: { "content-type": "text/html" },
+  };
+};
+
+const getFriendPlannerEndpoint = Endpoint.build("/planner/friend/:userId/:id");
+const getFriendPlannerHandler: RouteHandler<IPayload, APIGatewayProxyResult, typeof getFriendPlannerEndpoint> = async ({
+  payload,
+  match: { params },
+}) => {
+  const { di, event } = payload;
+  const userResult = await getUserAccount(payload);
+  if (!userResult.success) {
+    return userResult.error;
+  }
+  const account = userResult.data.account;
+  const context = await FriendPrograms_editorContext(di, account.id, params.userId, params.id);
+  if (!context.success) {
+    return {
+      statusCode: context.error.status,
+      body: context.error.message,
+      headers: { "content-type": "text/html", "cache-control": "no-cache" },
+    };
+  }
+  return {
+    statusCode: 200,
+    body: renderFriendPlannerHtml(
+      di.fetch,
+      context.data.exported,
+      account,
+      context.data.friendTarget,
+      getUserAgent(event)
+    ),
+    headers: { "content-type": "text/html", "cache-control": "no-cache" },
   };
 };
 
@@ -4650,6 +4790,7 @@ export const getRawHandler = (diBuilder: () => IDI): IHandler => {
       .get(getStorageEndpoint, getStorageHandler)
       .get(getDebugInfoEndpoint, getDebugInfoHandler)
       .get(getPlannerEndpoint, getPlannerHandler)
+      .get(getFriendPlannerEndpoint, getFriendPlannerHandler)
       .get(getProgramEndpoint, getProgramHandler)
       .get(getUserProgramsEndpoint, getUserProgramsHandler)
       .get(getUserProgramEndpoint, getUserProgramHandler)
@@ -4728,6 +4869,12 @@ export const getRawHandler = (diBuilder: () => IDI): IHandler => {
       .delete(deleteFollowingEndpoint, deleteFollowingHandler)
       .delete(deleteFollowerEndpoint, deleteFollowerHandler)
       .get(getFeedEndpoint, getFeedHandler)
+      .get(getFriendProgramsEndpoint, getFriendProgramsHandler)
+      .get(getFriendProgramEndpoint, getFriendProgramHandler)
+      .post(postFriendProgramEndpoint, postFriendProgramHandler)
+      .get(getProgramEditsEndpoint, getProgramEditsHandler)
+      .post(postProgramEditsSeenEndpoint, postProgramEditsSeenHandler)
+      .get(getProgramEditsForProgramEndpoint, getProgramEditsForProgramHandler)
       .get(getOwnReactionsEndpoint, getOwnReactionsHandler)
       .put(putReactionEndpoint, putReactionHandler)
       .delete(deleteReactionEndpoint, deleteReactionHandler)
@@ -4739,6 +4886,9 @@ export const getRawHandler = (diBuilder: () => IDI): IHandler => {
       .get(getV1FriendsEndpoint, getV1FriendsHandler)
       .get(getV1FriendHistoryEndpoint, getV1FriendHistoryHandler)
       .get(getV1FriendHistoryRecordEndpoint, getV1FriendHistoryRecordHandler)
+      .get(getV1FriendProgramsEndpoint, getV1FriendProgramsHandler)
+      .get(getV1FriendProgramEndpoint, getV1FriendProgramHandler)
+      .put(putV1FriendProgramEndpoint, putV1FriendProgramHandler)
       .get(getV1ProgramsEndpoint, getV1ProgramsHandler)
       .get(getV1ProgramEndpoint, getV1ProgramHandler)
       .post(postV1ProgramEndpoint, postV1ProgramHandler)

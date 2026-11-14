@@ -11,8 +11,14 @@ import { MockFetch } from "./utils/mockFetch";
 import { userTableNames, UserDao } from "../lambda/dao/userDao";
 import { followTableNames } from "../lambda/dao/followDao";
 import { reactionTableNames } from "../lambda/dao/reactionDao";
+import { ProgramEditDao, ProgramEditDao_build, programEditTableNames } from "../lambda/dao/programEditDao";
 import { Storage_getDefault } from "../src/models/storage";
 import { FriendsFixtures_entry, FriendsFixtures_record } from "./friendsFixtures";
+import { Program_create } from "../src/models/program";
+import {
+  PlannerProgram_evaluateText,
+  PlannerProgram_generateFullText,
+} from "../src/pages/planner/models/plannerProgram";
 
 function event(
   method: string,
@@ -69,15 +75,33 @@ describe("Friends API", () => {
     await di.dynamo.put({ tableName: userTableNames.prod.historyRecords, item: { ...record, userId } });
   }
 
-  async function befriend(follower: string, followee: string, notes: boolean = false): Promise<string> {
+  async function befriend(
+    follower: string,
+    followee: string,
+    notes: boolean = false,
+    programs: { programs?: boolean; programEdits?: boolean } = {}
+  ): Promise<string> {
     const invite = body(await call(event("POST", "/api/follow/invites", followee))).data;
     const request = body(await call(event("POST", `/api/follow/invites/${invite.token}/request`, follower))).data;
     await call(
       event("POST", `/api/follows/requests/${request.requestId}/approve`, followee, {
-        body: { permissions: { notes }, followBack: false },
+        body: { permissions: { notes, ...programs }, followBack: false },
       })
     );
     return request.requestId;
+  }
+
+  async function addProgram(userId: string, text: string): Promise<void> {
+    const program = {
+      ...Program_create("Strength", "p1"),
+      clonedAt: 1000,
+      nextDay: 2,
+      planner: { vtype: "planner" as const, name: "Strength", weeks: PlannerProgram_evaluateText(text) },
+    };
+    await new UserDao(di).saveProgram(userId, program);
+    const user = await di.dynamo.get<any>({ tableName: userTableNames.prod.users, key: { id: userId } });
+    user.storage.currentProgramId = "p1";
+    await di.dynamo.put({ tableName: userTableNames.prod.users, item: user });
   }
 
   beforeEach(async () => {
@@ -267,5 +291,184 @@ describe("Friends API", () => {
     expect(page.body).to.not.contain("boris");
     const expired = await call(event("GET", "/f/unknown-token", undefined));
     expect(expired.statusCode).to.equal(404);
+  });
+
+  it("changes only the permissions a request names", async () => {
+    await befriend("anna", "boris", true, { programEdits: true });
+    const result = await call(
+      event("PUT", "/api/follows/followers/anna/permissions", "boris", { body: { permissions: { notes: false } } })
+    );
+    expect(result.statusCode).to.equal(200);
+    const follows = body(await call(event("GET", "/api/follows", "anna"))).data;
+    expect(follows.following[0].permissions).to.eql({ notes: false, programs: true, programEdits: true });
+  });
+
+  describe("friend programs", () => {
+    const original = "# Week 1\n## Day 1\nSquat / 3x5 / 100lb\n";
+    const deload = "# Week 1\n## Day 1\nSquat / 5x5 / 90lb\n";
+
+    it("shows programs only with the programs permission, and edit implies see", async () => {
+      await addProgram("boris", original);
+      await befriend("anna", "boris");
+      expect((await call(event("GET", "/api/friends/boris/programs", "anna"))).statusCode).to.equal(404);
+
+      await befriend("carl", "boris", false, { programEdits: true });
+      const list = body(await call(event("GET", "/api/friends/boris/programs", "carl"))).data;
+      expect(list.programs).to.eql([{ id: "p1", name: "Strength", isCurrent: true }]);
+      const follows = body(await call(event("GET", "/api/follows", "carl"))).data;
+      expect(follows.following[0].permissions).to.eql({ notes: false, programs: true, programEdits: true });
+    });
+
+    it("reads a program with its context and refuses edits without the edit permission", async () => {
+      await addProgram("boris", original);
+      await befriend("anna", "boris", false, { programs: true });
+      const program = body(await call(event("GET", "/api/friends/boris/programs/p1", "anna"))).data;
+      expect(program.canEdit).to.equal(false);
+      expect(program.exported.program.id).to.equal("p1");
+      const save = await call(
+        event("POST", "/api/friends/boris/programs/p1", "anna", { body: { text: deload, base: program.base } })
+      );
+      expect(save.statusCode).to.equal(404);
+    });
+
+    it("writes the owner's program, keeps nextDay, and rejects a save from an old base", async () => {
+      await addProgram("boris", original);
+      await befriend("anna", "boris", false, { programEdits: true });
+      const read = body(await call(event("GET", "/api/friends/boris/programs/p1", "anna"))).data;
+
+      const first = await call(
+        event("POST", "/api/friends/boris/programs/p1", "anna", { body: { text: deload, base: read.base } })
+      );
+      expect(first.statusCode).to.equal(200);
+      const saved = (await new UserDao(di).getProgramsByUserId("boris"))[0];
+      expect(PlannerProgram_generateFullText(saved.planner!.weeks)).to.contain("Squat / 5x5 / 90lb");
+      expect(saved.nextDay).to.equal(2);
+
+      const stale = await call(
+        event("POST", "/api/friends/boris/programs/p1", "anna", { body: { text: original, base: read.base } })
+      );
+      expect(stale.statusCode).to.equal(409);
+      const next = await call(
+        event("POST", "/api/friends/boris/programs/p1", "anna", {
+          body: { text: original, base: body(first).data.base },
+        })
+      );
+      expect(next.statusCode).to.equal(200);
+    });
+
+    it("tells the owner who edited what, and marks the edits seen", async () => {
+      await addProgram("boris", original);
+      await befriend("anna", "boris", false, { programEdits: true });
+      const read = body(await call(event("GET", "/api/friends/boris/programs/p1", "anna"))).data;
+      await call(event("POST", "/api/friends/boris/programs/p1", "anna", { body: { text: deload, base: read.base } }));
+
+      const edits = body(await call(event("GET", "/api/program-edits", "boris"))).data;
+      expect(edits.unseenCount).to.equal(1);
+      expect(edits.programs[0]).to.deep.include({ programId: "p1", programName: "Strength", unseen: 1 });
+      expect(edits.programs[0].latest).to.deep.include({ editorId: "anna", nickname: "Anna" });
+
+      const detail = body(await call(event("GET", "/api/program-edits/p1", "boris"))).data;
+      expect(detail.edits[0].before).to.contain("Squat / 3x5 / 100lb");
+      expect(detail.edits[0].after).to.contain("Squat / 5x5 / 90lb");
+
+      const seen = body(
+        await call(event("POST", "/api/program-edits/seen", "boris", { body: { programId: "p1" } }))
+      ).data;
+      expect(seen.unseenCount).to.equal(0);
+      expect(body(await call(event("GET", "/api/program-edits", "anna"))).data.unseenCount).to.equal(0);
+    });
+
+    it("marks every unseen edit of a program seen, including those past the newest 20", async () => {
+      const dao = new ProgramEditDao(di);
+      for (let i = 0; i < 25; i += 1) {
+        const programId = i === 0 ? "p2" : "p1";
+        const args = { ownerId: "boris", programId, programName: "Strength", editorId: "anna", revision: "" };
+        await dao.put(ProgramEditDao_build({ ...args, now: 1000 + i }));
+      }
+      const detail = body(await call(event("GET", "/api/program-edits/p1", "boris"))).data;
+      expect(detail.edits).to.have.length(20);
+
+      const seen = body(
+        await call(event("POST", "/api/program-edits/seen", "boris", { body: { programId: "p1" } }))
+      ).data;
+      expect(seen.unseenCount).to.equal(1);
+      expect(seen.programs.find((p: any) => p.programId === "p2").unseen).to.equal(1);
+    });
+
+    it("does not write when another write landed after the load", async () => {
+      const userDao = new UserDao(di);
+      const loaded = (await userDao.getLimitedById("boris"))!;
+      const other = (await userDao.getLimitedById("boris"))!;
+      await userDao.applyStorageUpdate(other, (old) => ({ ...old }), "phone");
+      const stored = await userDao.applyStorageUpdateIfUnchanged(
+        loaded,
+        (old) => ({ ...old }),
+        "srv_api",
+        () => []
+      );
+      expect(stored).to.equal(false);
+      const fresh = (await userDao.getLimitedById("boris"))!;
+      expect(
+        await userDao.applyStorageUpdateIfUnchanged(
+          fresh,
+          (old) => ({ ...old }),
+          "srv_api",
+          () => []
+        )
+      ).to.equal(true);
+    });
+
+    it("removes program edits with the editor's and the owner's accounts", async () => {
+      await addProgram("boris", original);
+      await befriend("anna", "boris", false, { programEdits: true });
+      const read = body(await call(event("GET", "/api/friends/boris/programs/p1", "anna"))).data;
+      await call(event("POST", "/api/friends/boris/programs/p1", "anna", { body: { text: deload, base: read.base } }));
+      expect(Object.keys(di.dynamo.data[programEditTableNames.prod.programEdits] || {})).to.have.length(1);
+      await new UserDao(di).removeUser("anna");
+      expect(Object.keys(di.dynamo.data[programEditTableNames.prod.programEdits] || {})).to.eql([]);
+    });
+
+    it("serves the coach web editor only with the edit permission", async () => {
+      await addProgram("boris", original);
+      await befriend("anna", "boris", false, { programs: true });
+      expect((await call(event("GET", "/planner/friend/boris/p1", "anna"))).statusCode).to.equal(404);
+      expect((await call(event("GET", "/planner/friend/boris/p1", undefined))).statusCode).to.equal(302);
+
+      await befriend("carl", "boris", false, { programEdits: true });
+      const page = await call(event("GET", "/planner/friend/boris/p1", "carl"));
+      expect(page.statusCode).to.equal(200);
+      expect(page.body).to.contain("Editing Boris");
+      expect(page.body).to.contain("Squat");
+      expect(page.body).to.not.contain("boris@example.com");
+    });
+
+    it("never sends the owner's notes to a friend without the notes permission", async () => {
+      await addProgram("boris", original);
+      const user = await di.dynamo.get<any>({ tableName: userTableNames.prod.users, key: { id: "boris" } });
+      user.storage.settings.exerciseData = { squat_barbell: { rm1: { value: 140, unit: "kg" }, notes: "SECRET knee" } };
+      await di.dynamo.put({ tableName: userTableNames.prod.users, item: user });
+      await addRecord("boris", 1000, "2026-11-01T10:00:00.000Z", "SECRET workout");
+      await befriend("carl", "boris", false, { programEdits: true });
+
+      const responses = await Promise.all([
+        call(event("GET", "/api/feed", "carl")),
+        call(event("GET", "/api/friends/boris/programs", "carl")),
+        call(event("GET", "/api/friends/boris/programs/p1", "carl")),
+        call(event("GET", "/planner/friend/boris/p1", "carl")),
+      ]);
+      for (const response of responses) {
+        expect(response.statusCode).to.equal(200);
+        expect(response.body).to.not.contain("SECRET");
+      }
+      const program = body(responses[2]).data;
+      expect(program.settings.exerciseData.squat_barbell.rm1.value).to.equal(140);
+    });
+
+    it("refuses your own account and planner-less programs", async () => {
+      await addProgram("boris", original);
+      expect((await call(event("GET", "/api/friends/boris/programs", "boris"))).statusCode).to.equal(400);
+      await befriend("anna", "boris", false, { programs: true });
+      expect((await call(event("GET", "/api/friends/boris/programs/missing", "anna"))).statusCode).to.equal(404);
+    });
   });
 });

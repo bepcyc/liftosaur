@@ -17,6 +17,8 @@ import { Storage_getDefault } from "../src/models/storage";
 import { MockFetch } from "./utils/mockFetch";
 import { FollowDao } from "../lambda/dao/followDao";
 import { FriendsFixtures_record } from "./friendsFixtures";
+import { Program_create } from "../src/models/program";
+import { PlannerProgram_evaluateText } from "../src/pages/planner/models/plannerProgram";
 import sinon from "sinon";
 import JWT from "jsonwebtoken";
 
@@ -834,7 +836,7 @@ describe("MCP", () => {
         followeeId: "sam",
         status: "approved",
         requestId: "req-sam",
-        permissions: { notes: false },
+        permissions: { notes: false, programs: false, programEdits: false },
         createdAt: 1,
       });
       const record = FriendsFixtures_record(1000, "2026-11-01T10:00:00.000Z", { notes: "private" });
@@ -854,7 +856,9 @@ describe("MCP", () => {
     it("lists friends and reads their history through OAuth and API keys", async () => {
       for (const token of [await createOauthToken(), await createApiKey()]) {
         const friends = JSON.parse((await callTool(token, "list_friends")).content[0].text).friends;
-        expect(friends).to.eql([{ userId: "sam", nickname: "Sam", canSeeNotes: false }]);
+        expect(friends).to.eql([
+          { userId: "sam", nickname: "Sam", canSeeNotes: false, canSeePrograms: false, canEditPrograms: false },
+        ]);
         const history = await callTool(token, "get_friend_history", { userId: "sam" });
         expect(history.isError).to.be.undefined;
         const page = JSON.parse(history.content[0].text);
@@ -871,6 +875,62 @@ describe("MCP", () => {
       const token = await createOauthToken();
       const result = await callTool(token, "get_friend_history", { userId: "someone" });
       expect(result.isError).to.equal(true);
+    });
+
+    async function shareProgram(permissions: { programs: boolean; programEdits: boolean }): Promise<void> {
+      await new FollowDao(di).put({
+        followerId: userId,
+        followeeId: "sam",
+        status: "approved",
+        requestId: "req-sam",
+        permissions: { notes: false, ...permissions },
+        createdAt: 1,
+      });
+      await new UserDao(di).saveProgram("sam", {
+        ...Program_create("Sam's 5x5", "p1"),
+        clonedAt: 1000,
+        planner: { vtype: "planner", name: "Sam's 5x5", weeks: PlannerProgram_evaluateText(samProgram) },
+      });
+    }
+
+    const samProgram = "# Week 1\n## Day 1\nSquat / 5x5 / 100lb\n";
+
+    it("reads a friend's program and edits it with the base from the read", async () => {
+      await shareProgram({ programs: true, programEdits: true });
+      const token = await createOauthToken();
+      const list = JSON.parse((await callTool(token, "list_friend_programs", { userId: "sam" })).content[0].text);
+      expect(list.programs.map((p: any) => p.id)).to.eql(["p1"]);
+      const read = JSON.parse(
+        (await callTool(token, "get_friend_program", { userId: "sam", id: "p1" })).content[0].text
+      );
+      expect(read).to.include({ ownerId: "sam", id: "p1", canEdit: true });
+      expect(read.text).to.contain("Squat / 5x5 / 100lb");
+
+      const text = read.text.replace("100lb", "90lb");
+      const update = await callTool(token, "update_friend_program", { userId: "sam", id: "p1", text, base: read.base });
+      expect(update.isError).to.be.undefined;
+      const stale = await callTool(token, "update_friend_program", { userId: "sam", id: "p1", text, base: read.base });
+      expect(stale.isError).to.equal(true);
+      expect(stale.content[0].text).to.contain("changed since you read it");
+    });
+
+    it("refuses update_friend_program without the edit permission or a base", async () => {
+      await shareProgram({ programs: true, programEdits: false });
+      const token = await createOauthToken();
+      const read = JSON.parse(
+        (await callTool(token, "get_friend_program", { userId: "sam", id: "p1" })).content[0].text
+      );
+      expect(read.canEdit).to.equal(false);
+      const denied = await callTool(token, "update_friend_program", {
+        userId: "sam",
+        id: "p1",
+        text: samProgram,
+        base: read.base,
+      });
+      expect(denied.isError).to.equal(true);
+      await shareProgram({ programs: true, programEdits: true });
+      const noBase = await callTool(token, "update_friend_program", { userId: "sam", id: "p1", text: samProgram });
+      expect(noBase.isError).to.equal(true);
     });
   });
 

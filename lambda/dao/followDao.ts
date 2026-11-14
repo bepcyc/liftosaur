@@ -1,6 +1,6 @@
 import { Utils_getEnv } from "../utils";
 import { IDI } from "../utils/di";
-import { IFollowPermissions } from "../../src/models/follow";
+import { Follow_defaultPermissions, Follow_parsePermissions, IFollowPermissions } from "../../src/models/follow";
 
 export const followTableNames = {
   dev: {
@@ -26,14 +26,19 @@ export interface IFollowDao {
   createdAt: number;
 }
 
+function readRow(row: IFollowDao): IFollowDao {
+  return { ...row, permissions: Follow_parsePermissions(row.permissions) ?? Follow_defaultPermissions };
+}
+
 export class FollowDao {
   constructor(private readonly di: IDI) {}
 
   public async get(followerId: string, followeeId: string): Promise<IFollowDao | undefined> {
-    return this.di.dynamo.get<IFollowDao>({
+    const row = await this.di.dynamo.get<IFollowDao>({
       tableName: followTableNames[Utils_getEnv()].follows,
       key: { followerId, followeeId },
     });
+    return row != null ? readRow(row) : undefined;
   }
 
   public async getByRequestId(requestId: string): Promise<IFollowDao | undefined> {
@@ -45,27 +50,29 @@ export class FollowDao {
       attrs: { "#requestId": "requestId" },
       values: { ":requestId": requestId },
     });
-    return rows[0];
+    return rows[0] != null ? readRow(rows[0]) : undefined;
   }
 
   public async listFollowing(followerId: string): Promise<IFollowDao[]> {
-    return this.di.dynamo.query<IFollowDao>({
+    const rows = await this.di.dynamo.query<IFollowDao>({
       tableName: followTableNames[Utils_getEnv()].follows,
       expression: "#followerId = :followerId",
       attrs: { "#followerId": "followerId" },
       values: { ":followerId": followerId },
     });
+    return rows.map(readRow);
   }
 
   public async listFollowers(followeeId: string): Promise<IFollowDao[]> {
     const env = Utils_getEnv();
-    return this.di.dynamo.query<IFollowDao>({
+    const rows = await this.di.dynamo.query<IFollowDao>({
       tableName: followTableNames[env].follows,
       indexName: followTableNames[env].followsFollowee,
       expression: "#followeeId = :followeeId",
       attrs: { "#followeeId": "followeeId" },
       values: { ":followeeId": followeeId },
     });
+    return rows.map(readRow);
   }
 
   public async put(row: IFollowDao): Promise<void> {

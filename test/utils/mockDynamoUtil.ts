@@ -17,6 +17,7 @@ import { freeUsersTableNames } from "../../lambda/dao/freeUserDao";
 import { followTableNames } from "../../lambda/dao/followDao";
 import { followInviteTableNames } from "../../lambda/dao/followInviteDao";
 import { reactionTableNames } from "../../lambda/dao/reactionDao";
+import { programEditTableNames } from "../../lambda/dao/programEditDao";
 import { CollectionUtils_compact } from "../../src/utils/collection";
 import { ObjectUtils_entries, ObjectUtils_values, ObjectUtils_clone } from "../../src/utils/object";
 
@@ -40,6 +41,7 @@ const idKeys: Partial<Record<string, string[]>> = {
   [followTableNames.prod.follows]: ["followerId", "followeeId"],
   [followInviteTableNames.prod.followInvites]: ["token"],
   [reactionTableNames.prod.reactions]: ["target", "reactorId"],
+  [programEditTableNames.prod.programEdits]: ["ownerId", "id"],
 };
 
 // Sort key used to order results when a query passes scanIndexForward. GSIs sort by a different attribute
@@ -51,6 +53,7 @@ const indexSortKeys: Partial<Record<string, string>> = {
 
 const tableSortKeys: Partial<Record<string, string>> = {
   [userTableNames.prod.historyRecords]: "id",
+  [programEditTableNames.prod.programEdits]: "id",
 };
 
 const userIndexProjectedAttributes: Partial<Record<string, string[]>> = {
@@ -130,8 +133,13 @@ export class MockDynamoUtil implements IDynamoUtil {
         const [, field, op, raw] = opMatch;
         const val = raw.trim();
         clauses.push((item) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const actual = (item as any)[field];
+          const actual = field
+            .split(".")
+            .reduce<unknown>(
+              (memo, key) =>
+                memo != null && typeof memo === "object" ? (memo as Record<string, unknown>)[key] : undefined,
+              item
+            );
           const c = compareValues(actual, val);
           switch (op) {
             case "=":

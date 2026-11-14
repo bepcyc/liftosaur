@@ -48,6 +48,9 @@ export type IScreenData =
   | { name: "friendRequest"; params: { requestId: string } }
   | { name: "friendFollower"; params: { userId: string } }
   | { name: "friendProfile"; params: { userId: string } }
+  | { name: "friendPrograms"; params: { userId: string } }
+  | { name: "friendProgram"; params: { userId: string; programId: string } }
+  | { name: "programEdits"; params: { programId: string } }
   | { name: "feedFilter"; params?: Record<string, never> };
 
 export type IScreen = IScreenData["name"];
@@ -195,8 +198,13 @@ export function Screen_tab(screen: IScreen): ITab {
     case "followInvite":
     case "friendRequest":
     case "friendFollower":
-    case "friendProfile": {
+    case "friendProfile":
+    case "friendPrograms":
+    case "friendProgram": {
       return "me";
+    }
+    case "programEdits": {
+      return "program";
     }
     case "feedFilter": {
       return "home";

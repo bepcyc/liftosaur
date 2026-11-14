@@ -18,7 +18,7 @@ import { ScreenMuscleGroups as ScreenMuscleGroupsComponent } from "../../compone
 import { ScreenStats as ScreenStatsComponent } from "../../components/screenStats";
 import { ScreenMeasurements as ScreenMeasurementsComponent } from "../../components/screenMeasurements";
 import { ScreenSleepNutrition as ScreenSleepNutritionComponent } from "../../components/screenSleepNutrition";
-import { SocialState_pendingRequestCount } from "../../models/socialState";
+import { SocialState_pendingRequestCount, SocialState_unseenProgramEdits } from "../../models/socialState";
 import { ScreenExerciseStats as ScreenExerciseStatsComponent } from "../../components/screenExerciseStats";
 import { ScreenRecentImports as ScreenRecentImportsComponent } from "../../components/screenRecentImports";
 import { ScreenImportPreview as ScreenImportPreviewComponent } from "../../components/screenImportPreview";
@@ -40,6 +40,7 @@ export function NavScreenSettings(): JSX.Element {
     state.storage.currentProgramId != null ? Program_getProgram(state, state.storage.currentProgramId) : undefined;
   const isOngoingProgress = (state.storage.progress?.length ?? 0) > 0;
   const pendingFollowRequests = SocialState_pendingRequestCount(state.social, state.user?.id);
+  const unseenProgramEdits = SocialState_unseenProgramEdits(state.social, state.user?.id);
   const navCommon = useMemo(
     () => ({
       loading,
@@ -49,8 +50,9 @@ export function NavScreenSettings(): JSX.Element {
       stats,
       userId: user?.id,
       pendingFollowRequests,
+      unseenProgramEdits,
     }),
-    [loading, currentProgram, settings, isOngoingProgress, stats, user, pendingFollowRequests]
+    [loading, currentProgram, settings, isOngoingProgress, stats, user, pendingFollowRequests, unseenProgramEdits]
   );
   return (
     <NavScreenContent>

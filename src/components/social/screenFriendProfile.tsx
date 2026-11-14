@@ -12,13 +12,15 @@ import { IFeedWorkout } from "../../models/feedWorkout";
 import { FeedWorkout_key } from "../../models/feedWorkout";
 import { ISettings } from "../../types";
 import { Thunk_loadFeed, Thunk_react, Thunk_unfollow } from "../../ducks/socialThunks";
-import { Thunk_pullScreen } from "../../ducks/thunks";
+import { Thunk_pullScreen, Thunk_pushScreen } from "../../ducks/thunks";
+import { MenuItem } from "../menuItem";
 import { CollectionUtils_compact } from "../../utils/collection";
 import { FeedWorkoutCard } from "./feedWorkoutCard";
 import { Avatar } from "./avatar";
 import { Button } from "../button";
 import { IconSpinner } from "../icons/iconSpinner";
 import { Dialog_confirm } from "../../utils/dialog";
+import { Follow_displayName } from "../../models/follow";
 
 interface IProps {
   userId: string;
@@ -30,7 +32,7 @@ interface IProps {
 export function ScreenFriendProfile(props: IProps): JSX.Element {
   const person = props.social?.follows?.following.find((f) => f.userId === props.userId);
   const nickname = person?.nickname ?? props.social?.owners[props.userId]?.nickname;
-  useNavOptions({ navTitle: "Friend", navSubtitle: nickname || props.userId });
+  useNavOptions({ navTitle: "Friend", navSubtitle: Follow_displayName(nickname) });
   const onScroll = useNavIsScrolled();
   const page = props.social?.pages[props.userId];
   const socialWorkouts = props.social?.workouts;
@@ -75,27 +77,38 @@ export function ScreenFriendProfile(props: IProps): JSX.Element {
   );
 
   const header = (
-    <View className="flex-row items-center gap-3 px-4 pt-2 pb-4 mb-4 border-b border-border-neutral">
-      <Avatar seed={props.userId} nickname={nickname} size={56} />
-      <View className="flex-1">
-        <Text className="text-lg font-semibold">{nickname || props.userId}</Text>
-        <Text className="text-xs text-text-secondary">{props.userId}</Text>
+    <View className="mb-4 border-b border-border-neutral">
+      <View className="flex-row items-center gap-3 px-4 pt-2 pb-4">
+        <Avatar seed={props.userId} nickname={nickname} size={56} />
+        <View className="flex-1">
+          <Text className="text-lg font-semibold">{Follow_displayName(nickname)}</Text>
+        </View>
+        <Button
+          kind="lightgrayv3"
+          buttonSize="md"
+          name="friend-unfollow"
+          data-testid="friend-unfollow"
+          testID="friend-unfollow"
+          onClick={async () => {
+            if (await Dialog_confirm(`Stop following ${nickname || "them"}?`)) {
+              props.dispatch(Thunk_unfollow(props.userId));
+              props.dispatch(Thunk_pullScreen());
+            }
+          }}
+        >
+          Unfollow
+        </Button>
       </View>
-      <Button
-        kind="lightgrayv3"
-        buttonSize="md"
-        name="friend-unfollow"
-        data-testid="friend-unfollow"
-        testID="friend-unfollow"
-        onClick={async () => {
-          if (await Dialog_confirm(`Stop following ${nickname || "them"}?`)) {
-            props.dispatch(Thunk_unfollow(props.userId));
-            props.dispatch(Thunk_pullScreen());
-          }
-        }}
-      >
-        Unfollow
-      </Button>
+      {person?.permissions.programs && (
+        <View className="px-4">
+          <MenuItem
+            name="Programs"
+            isBorderless={true}
+            shouldShowRightArrow={true}
+            onClick={() => props.dispatch(Thunk_pushScreen("friendPrograms", { userId: props.userId }))}
+          />
+        </View>
+      )}
     </View>
   );
 

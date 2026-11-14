@@ -14,6 +14,12 @@ import {
 import { IAccount } from "../models/account";
 import { IEither } from "../utils/types";
 import { IFollowPermissions, IFollowRequest, IFollowsResponse } from "../models/follow";
+import {
+  IFriendProgramContext,
+  IFriendProgramSummary,
+  IProgramEditsForProgram,
+  IProgramEditsResponse,
+} from "../models/friendProgram";
 import { IFeedResponse } from "../models/feedWorkout";
 import { IReaction, IReactionSummary } from "../models/reactions";
 import { UrlUtils_build } from "../utils/url";
@@ -1243,6 +1249,42 @@ export class Service {
       url.searchParams.set("owners", args.owners.join(","));
     }
     return this.socialRequest("GET", `${url.pathname}${url.search}`);
+  }
+
+  public getFriendPrograms(ownerId: string): Promise<IEither<{ programs: IFriendProgramSummary[] }, string>> {
+    return this.socialRequest("GET", `/api/friends/${encodeURIComponent(ownerId)}/programs`);
+  }
+
+  public getFriendProgram(ownerId: string, programId: string): Promise<IEither<IFriendProgramContext, string>> {
+    return this.socialRequest(
+      "GET",
+      `/api/friends/${encodeURIComponent(ownerId)}/programs/${encodeURIComponent(programId)}`
+    );
+  }
+
+  public saveFriendProgram(
+    ownerId: string,
+    programId: string,
+    text: string,
+    base: string
+  ): Promise<IEither<{ id: string; base: string }, string>> {
+    return this.socialRequest(
+      "POST",
+      `/api/friends/${encodeURIComponent(ownerId)}/programs/${encodeURIComponent(programId)}`,
+      { text, base }
+    );
+  }
+
+  public getProgramEdits(): Promise<IEither<IProgramEditsResponse, string>> {
+    return this.socialRequest("GET", "/api/program-edits");
+  }
+
+  public getProgramEditsFor(programId: string): Promise<IEither<IProgramEditsForProgram, string>> {
+    return this.socialRequest("GET", `/api/program-edits/${encodeURIComponent(programId)}`);
+  }
+
+  public markProgramEditsSeen(programId: string): Promise<IEither<IProgramEditsResponse, string>> {
+    return this.socialRequest("POST", "/api/program-edits/seen", { programId });
   }
 
   public getOwnReactions(recordIds: number[]): Promise<IEither<Partial<Record<string, IReactionSummary>>, string>> {

@@ -39,7 +39,7 @@ export function Avatar(props: IProps): JSX.Element {
         className="font-semibold text-center text-text-alwayswhite"
         style={{ fontSize, lineHeight: props.size, height: props.size, includeFontPadding: false }}
       >
-        {Avatar_initials(props.nickname, props.seed)}
+        {Avatar_initials(props.nickname)}
       </Text>
     </View>
   );

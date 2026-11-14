@@ -13,7 +13,11 @@ import { Settings_build } from "../src/models/settings";
 import { FriendsFixtures_record } from "./friendsFixtures";
 
 function friend(ownerId: string, id: number, date: string): IFeedWorkout {
-  return FeedWorkout_fromRecord(FriendsFixtures_record(id, date), Settings_build(), ownerId, { notes: false });
+  return FeedWorkout_fromRecord(FriendsFixtures_record(id, date), Settings_build(), ownerId, {
+    notes: false,
+    programs: false,
+    programEdits: false,
+  });
 }
 
 function byKey(workouts: IFeedWorkout[]): Partial<Record<string, IFeedWorkout>> {

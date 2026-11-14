@@ -9,6 +9,7 @@ import { Thunk_pullScreen } from "../../ducks/thunks";
 import { Button } from "../button";
 import { Avatar } from "./avatar";
 import { IconCheckCircle } from "../icons/iconCheckCircle";
+import { Follow_displayName } from "../../models/follow";
 
 interface IProps {
   userId: string;
@@ -22,7 +23,7 @@ export function ScreenFeedFilter(props: IProps): JSX.Element {
   const [hidden, setHidden] = useState<string[]>(props.social?.hiddenOwners ?? []);
   const people = [
     { userId: props.userId, nickname: props.nickname, label: "You" },
-    ...(props.social?.follows?.following ?? []).map((f) => ({ ...f, label: f.nickname || f.userId })),
+    ...(props.social?.follows?.following ?? []).map((f) => ({ ...f, label: Follow_displayName(f.nickname) })),
   ];
   const toggle = (userId: string): void => {
     setHidden(hidden.includes(userId) ? hidden.filter((id) => id !== userId) : [...hidden, userId]);

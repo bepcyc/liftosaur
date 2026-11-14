@@ -25,8 +25,11 @@ import {
   NavScreenFriendFollower,
   NavScreenFriendInvite,
   NavScreenFriendProfile,
+  NavScreenFriendProgram,
+  NavScreenFriendPrograms,
   NavScreenFriendRequest,
   NavScreenFriends,
+  NavScreenProgramEdits,
 } from "./screens/NavScreenFriends";
 import {
   NavScreenPrograms,
@@ -223,6 +226,8 @@ function HomeStackScreen(): JSX.Element {
       <HomeStack.Screen name="progress" component={NavScreenProgress} getId={({ params }) => String(params?.id ?? 0)} />
       <HomeStack.Screen name="exerciseStats" component={NavScreenExerciseStats} />
       <HomeStack.Screen name="friendProfile" component={NavScreenFriendProfile} />
+      <HomeStack.Screen name="friendPrograms" component={NavScreenFriendPrograms} />
+      <HomeStack.Screen name="friendProgram" component={NavScreenFriendProgram} />
       <HomeStack.Screen name="feedFilter" component={NavScreenFeedFilter} />
     </HomeStack.Navigator>
   );
@@ -238,6 +243,7 @@ function ProgramStackScreen(): JSX.Element {
       <ProgramStack.Screen name="programselect" component={NavScreenProgramSelect} />
       <ProgramStack.Screen name="programPreview" component={NavScreenProgramPreview} />
       <ProgramStack.Screen name="exerciseStats" component={NavScreenExerciseStats} />
+      <ProgramStack.Screen name="programEdits" component={NavScreenProgramEdits} />
     </ProgramStack.Navigator>
   );
 }
@@ -305,6 +311,9 @@ function MeStackScreen(): JSX.Element {
       <MeStack.Screen name="friendRequest" component={NavScreenFriendRequest} />
       <MeStack.Screen name="friendFollower" component={NavScreenFriendFollower} />
       <MeStack.Screen name="friendProfile" component={NavScreenFriendProfile} />
+      <MeStack.Screen name="friendPrograms" component={NavScreenFriendPrograms} />
+      <MeStack.Screen name="friendProgram" component={NavScreenFriendProgram} />
+      <MeStack.Screen name="programEdits" component={NavScreenProgramEdits} />
     </MeStack.Navigator>
   );
 }

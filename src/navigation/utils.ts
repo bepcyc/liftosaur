@@ -5,7 +5,7 @@ import type { IScreen } from "../models/screen";
 import type { IHistoryRecord } from "../types";
 import type { NavigationState } from "@react-navigation/native";
 import { Subscriptions_isEligibleForThanksgivingPromo } from "../utils/subscriptions";
-import { SocialState_pendingRequestCount } from "../models/socialState";
+import { SocialState_pendingRequestCount, SocialState_unseenProgramEdits } from "../models/socialState";
 
 export interface IAdhocRecordParams {
   progressId?: number;
@@ -38,6 +38,8 @@ export function buildNavCommon(state: IState): INavCommon {
     stats: untrack(state.storage.stats),
     userId: state.user?.id,
     pendingFollowRequests: SocialState_pendingRequestCount(state.social, state.user?.id),
+    unseenProgramEdits: SocialState_unseenProgramEdits(state.social, state.user?.id),
+    programEdits: state.social?.accountId === state.user?.id ? untrack(state.social?.programEdits) : undefined,
   };
 }
 

@@ -9,6 +9,8 @@ export type IHomeStackParamList = {
   exerciseStats: undefined;
   friendProfile: { userId: string };
   feedFilter: undefined;
+  friendPrograms: { userId: string };
+  friendProgram: { userId: string; programId: string };
 };
 
 export type IOnboardingStackParamList = {
@@ -31,6 +33,7 @@ export type IProgramStackParamList = {
   programselect: undefined;
   programPreview: undefined;
   exerciseStats: undefined;
+  programEdits: { programId: string };
 };
 
 export type IWorkoutStackParamList = {
@@ -75,6 +78,9 @@ export type IMeStackParamList = {
   friendRequest: { requestId: string };
   friendFollower: { userId: string };
   friendProfile: { userId: string };
+  friendPrograms: { userId: string };
+  friendProgram: { userId: string; programId: string };
+  programEdits: { programId: string };
 };
 
 export type IRootTabParamList = {

@@ -5,6 +5,7 @@ import { UserDao, userTableNames } from "../dao/userDao";
 import { UidFactory_generateSecureToken } from "./generator";
 import { FollowAccess_canDecide } from "./followAccess";
 import {
+  Follow_applyPermissionsPatch,
   Follow_defaultPermissions,
   Follow_maxFollows,
   IApiFriend,
@@ -46,6 +47,8 @@ export async function Follows_listApproved(di: IDI, viewerId: string): Promise<I
     userId: r.followeeId,
     nickname: nicknames[r.followeeId],
     canSeeNotes: r.permissions.notes,
+    canSeePrograms: r.permissions.programs,
+    canEditPrograms: r.permissions.programEdits,
   }));
 }
 
@@ -65,6 +68,7 @@ export async function Follows_load(di: IDI, userId: string): Promise<IFollowsRes
       userId: r.followeeId,
       nickname: nicknames[r.followeeId],
       lastWorkoutAt: lastWorkouts[i],
+      permissions: r.permissions,
     })),
     followers: followers
       .filter((r) => r.status === "approved")
@@ -137,13 +141,13 @@ export async function Follows_setPermissions(
   di: IDI,
   actorId: string,
   followerId: string,
-  permissions: IFollowPermissions
+  patch: Partial<IFollowPermissions>
 ): Promise<IEither<void, IFollowsError>> {
   const followDao = new FollowDao(di);
   const row = await followDao.get(followerId, actorId);
   if (row == null || row.status !== "approved") {
     return { success: false, error: "notfound" };
   }
-  await followDao.put({ ...row, permissions });
+  await followDao.put({ ...row, permissions: Follow_applyPermissionsPatch(row.permissions, patch) });
   return { success: true, data: undefined };
 }

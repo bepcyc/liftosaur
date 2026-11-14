@@ -22,7 +22,14 @@ import { canRedo, canUndo, redo, undo, undoRedoMiddleware, useUndoRedo } from ".
 import { UndoingFlag_set } from "../../utils/undoingFlag";
 import { IPartialStorage, IPlannerProgram, IPlannerProgramDay, IPlannerProgramWeek, IStats, IUnit } from "../../types";
 import { Service } from "../../api/service";
-import { PlannerProgramSave_baseAfterSave, PlannerProgramSave_initialBase } from "./models/plannerProgramSave";
+import {
+  IPlannerFriendTarget,
+  PlannerProgramSave_baseAfterSave,
+  PlannerProgramSave_capabilities,
+  PlannerProgramSave_friendRequest,
+  PlannerProgramSave_initialBase,
+  PlannerProgramSave_target,
+} from "./models/plannerProgramSave";
 import { IFieldVersion } from "../../models/versionTracker/types";
 import {
   PlannerProgram_hasNonSelectedWeightUnit,
@@ -90,6 +97,7 @@ export interface IPlannerContentProps {
   account?: IAccount;
   shouldSync?: boolean;
   revisions: string[];
+  friendTarget?: IPlannerFriendTarget;
 }
 
 async function saveProgram(
@@ -164,9 +172,14 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
     ? { ...props.initialProgram.program, planner: props.initialProgram.program.planner || initialPlanner }
     : { ...Program_create("My Program", "newprogram"), planner: initialPlanner };
 
-  const [initialSettings] = useState(() =>
-    Settings_webEditorInitial(props.partialStorage?.settings, props.initialProgram?.customExercises)
+  const friendTarget = props.friendTarget;
+  const capabilities = PlannerProgramSave_capabilities(props.account != null, friendTarget);
+  const [initialSettings] = useState(
+    () =>
+      friendTarget?.settings ??
+      Settings_webEditorInitial(props.partialStorage?.settings, props.initialProgram?.customExercises)
   );
+  const [friendBase, setFriendBase] = useState(friendTarget?.base);
   const [settings, setSettings] = useState(initialSettings);
   const [isBannerLoading, setIsBannerLoading] = useState(false);
 
@@ -286,7 +299,7 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
   );
   // Settings belong to the account, not the program, so this is gated on being logged in - `shouldSync`
   // is false on /planner even for a logged-in user, because that program is not attached to the account yet
-  const canSaveSettings = props.account != null;
+  const canSaveSettings = capabilities.canSaveSettings;
   useEffect(() => {
     if (!canSaveSettings || pendingSettingsSave == null) {
       return;
@@ -403,6 +416,17 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
     return true;
   }
 
+  async function saveFriendProgram(ownerId: string): Promise<void> {
+    const request = PlannerProgramSave_friendRequest(state.current.program, friendBase);
+    const saved = await service.saveFriendProgram(ownerId, request.programId, request.text, request.base);
+    if (saved.success) {
+      setFriendBase(saved.data.base);
+      dispatch(lb<IPlannerState>().p("initialEncodedProgram").record(state.encodedProgram), "Save program");
+    } else {
+      Dialog_alert(saved.error);
+    }
+  }
+
   async function copyLink(): Promise<void> {
     track({ name: "copy_link" });
     const exportProgram = Program_exportProgram(program, settings);
@@ -479,17 +503,26 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
               It's your affiliate link
             </div>
           )}
+          {capabilities.editingLabel != null && (
+            <div className="text-sm font-semibold text-text-purple" data-testid="planner-friend-target">
+              {capabilities.editingLabel}
+            </div>
+          )}
           <h1 className="text-2xl font-bold md:text-3xl">
-            <LinkInlineInput
-              value={state.current.program.name}
-              onInputString={(v) => {
-                dispatch(
-                  [lbProgram.p("name").record(v), lb<IPlannerState>().p("current").p("program").p("name").record(v)],
-                  "Update program name"
-                );
-                document.title = `Liftosaur: Weight Lifting Tracking App | ${HtmlUtils_escapeHtml(v)}`;
-              }}
-            />
+            {!capabilities.canRename ? (
+              state.current.program.name
+            ) : (
+              <LinkInlineInput
+                value={state.current.program.name}
+                onInputString={(v) => {
+                  dispatch(
+                    [lbProgram.p("name").record(v), lb<IPlannerState>().p("current").p("program").p("name").record(v)],
+                    "Update program name"
+                  );
+                  document.title = `Liftosaur: Weight Lifting Tracking App | ${HtmlUtils_escapeHtml(v)}`;
+                }}
+              />
+            )}
           </h1>
           {!props.shouldSync && (
             <button
@@ -543,6 +576,11 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
         onSave={async () => {
           setIsLoading(true);
           try {
+            const target = PlannerProgramSave_target(friendTarget);
+            if (target.kind === "friend") {
+              await saveFriendProgram(target.ownerId);
+              return;
+            }
             const exportProgram = Program_exportProgram(state.current.program, settings);
             exportProgram.settings.exerciseData = settings.exerciseData;
             exportProgram.settings.workoutSettings = settings.workoutSettings;
@@ -609,8 +647,12 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
                 isAffiliateLink={!!props.account?.affiliateEnabled && !!props.account?.id}
                 isExportDisabled={isInvalid}
                 dispatch={dispatch}
-                onCopyLink={copyLink}
-                onExportImage={() => dispatch(lbUi.p("showPictureExport").record(true), "Show picture export")}
+                onCopyLink={capabilities.canShare ? copyLink : undefined}
+                onExportImage={
+                  capabilities.canShare
+                    ? () => dispatch(lbUi.p("showPictureExport").record(true), "Show picture export")
+                    : undefined
+                }
                 onVersions={props.shouldSync && props.revisions.length > 0 ? () => setShowRevisions(true) : undefined}
                 onEditSettings={() => dispatch(lbUi.p("showSettingsModal").record(true), "Show settings")}
               />
@@ -706,9 +748,10 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
           isLoggedIn={!!props.account}
           dispatch={dispatch}
           onChangeSettings={setSettings}
+          customExercisesLockedReason={capabilities.customExercisesLockedReason}
         />
       )}
-      {state.ui.showPictureExport && (
+      {state.ui.showPictureExport && capabilities.canShare && (
         <ModalPlannerPictureExport
           userId={props.account?.id}
           isChanged={isChanged(state)}

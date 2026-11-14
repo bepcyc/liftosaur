@@ -17,6 +17,14 @@ import {
   SocialState_restoreReaction,
   SocialState_setHiddenOwners,
   SocialState_startLoading,
+  SocialState_applyFriendPrograms,
+  SocialState_applyFriendProgram,
+  SocialState_applyProgramEdits,
+  SocialState_applyProgramEditsFor,
+  SocialState_isProgramEditsStale,
+  SocialState_hasUnseenEditsFor,
+  SocialState_failFriendPrograms,
+  SocialState_failFriendProgram,
 } from "../models/socialState";
 import { IFollowsResponse, IFollowPermissions } from "../models/follow";
 import { FeedWorkout_key } from "../models/feedWorkout";
@@ -138,6 +146,7 @@ export function Thunk_refreshFeedIfStale(pageKey: string): IThunk {
     }
     if (pageKey === SocialState_homePage) {
       dispatch(Thunk_loadFollows());
+      dispatch(Thunk_loadProgramEdits());
     }
     if (page == null) {
       dispatch(Thunk_loadFeed(pageKey, true));
@@ -242,6 +251,73 @@ export function Thunk_removeFollower(userId: string): IThunk {
       return;
     }
     applyFollowsResult(dispatch, accountId, await env.service.removeFollower(userId), false);
+  };
+}
+
+export function Thunk_loadFriendPrograms(ownerId: string): IThunk {
+  return async (dispatch, getState, env) => {
+    const accountId = getState().user?.id;
+    if (accountId == null) {
+      return;
+    }
+    const result = await env.service.getFriendPrograms(ownerId);
+    modifySocial(dispatch, accountId, "Friend programs", (s) =>
+      result.success
+        ? SocialState_applyFriendPrograms(s, ownerId, result.data.programs)
+        : SocialState_failFriendPrograms(s, ownerId, result.error)
+    );
+  };
+}
+
+export function Thunk_loadFriendProgram(ownerId: string, programId: string): IThunk {
+  return async (dispatch, getState, env) => {
+    const accountId = getState().user?.id;
+    if (accountId == null) {
+      return;
+    }
+    const result = await env.service.getFriendProgram(ownerId, programId);
+    modifySocial(dispatch, accountId, "Friend program", (s) =>
+      result.success
+        ? SocialState_applyFriendProgram(s, result.data)
+        : SocialState_failFriendProgram(s, ownerId, programId, result.error)
+    );
+  };
+}
+
+export function Thunk_loadProgramEdits(force: boolean = false): IThunk {
+  return async (dispatch, getState, env) => {
+    const accountId = getState().user?.id;
+    const now = Date.now();
+    if (accountId == null || (!force && !SocialState_isProgramEditsStale(currentSocial(getState()), now))) {
+      return;
+    }
+    const result = await env.service.getProgramEdits();
+    if (result.success) {
+      modifySocial(dispatch, accountId, "Program edits", (s) => SocialState_applyProgramEdits(s, result.data, now));
+    }
+  };
+}
+
+export function Thunk_loadProgramEditsFor(programId: string): IThunk {
+  return async (dispatch, getState, env) => {
+    const accountId = getState().user?.id;
+    if (accountId == null) {
+      return;
+    }
+    const result = await env.service.getProgramEditsFor(programId);
+    if (result.success) {
+      modifySocial(dispatch, accountId, "Program edits for program", (s) =>
+        SocialState_applyProgramEditsFor(s, result.data)
+      );
+      if (SocialState_hasUnseenEditsFor(currentSocial(getState()), programId, result.data.edits)) {
+        const seen = await env.service.markProgramEditsSeen(programId);
+        if (seen.success) {
+          modifySocial(dispatch, accountId, "Program edits seen", (s) =>
+            SocialState_applyProgramEdits(s, seen.data, Date.now())
+          );
+        }
+      }
+    }
   };
 }
 

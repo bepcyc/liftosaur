@@ -235,6 +235,7 @@ import {
   Thunk_postevent,
   Thunk_debugTestLogin,
 } from "./ducks/thunks";
+import { Thunk_loadProgramEdits } from "./ducks/socialThunks";
 import { PushRegistration_identityOf } from "./utils/pushRegistration";
 import { History_getHomeAggregates } from "./models/history";
 import { PerfLongTasks_start } from "./utils/perfLongTasks";
@@ -332,7 +333,10 @@ export function AppRoot(props: { initialState: IState; env: IEnv }): React.JSX.E
     return env.push?.start({
       identity: PushRegistration_identityOf(stateRef.current),
       getLocalOriginalId: () => stateRef.current.storage.originalId,
-      onSync: (done) => dispatch(Thunk_sync2({ force: true, cb: done })),
+      onSync: (done) => {
+        dispatch(Thunk_sync2({ force: true, cb: done }));
+        dispatch(Thunk_loadProgramEdits(true));
+      },
     });
   }, [env]);
 
@@ -480,6 +484,7 @@ export function AppRoot(props: { initialState: IState; env: IEnv }): React.JSX.E
         dispatch(Thunk_postevent("wake"));
         env.queue.clearStaleOperations();
         dispatch(Thunk_sync2({ force: true }));
+        dispatch(Thunk_loadProgramEdits(true));
         env.push?.setIdentity(PushRegistration_identityOf(stateRef.current));
         dispatch(Thunk_syncHealthKit());
         // JS is suspended while backgrounded, so a set timer can overrun its target unprocessed. On wake,

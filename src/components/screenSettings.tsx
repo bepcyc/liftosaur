@@ -75,7 +75,16 @@ function ScreenSettingsInner(props: IProps): JSX.Element {
       <MenuItem
         shouldShowRightArrow={true}
         name="Program"
-        value={props.currentProgramName}
+        value={
+          props.navCommon.unseenProgramEdits ? (
+            <View className="flex-row items-center gap-2">
+              <Text className="text-text-secondary">{props.currentProgramName}</Text>
+              <View testID="program-edits-dot" className="w-2 h-2 rounded-full bg-background-error" />
+            </View>
+          ) : (
+            props.currentProgramName
+          )
+        }
         onClick={() => {
           props.dispatch(Thunk_pushScreen("programs"));
         }}

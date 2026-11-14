@@ -283,14 +283,22 @@ DELETE /api/v1/history/:id
 GET /api/v1/friends
 ```
 
-Lists the people you follow in Liftosaur. These are the friends whose workouts you can read. `canSeeNotes` says whether that friend shares their workout notes with you.
+Lists the people you follow in Liftosaur. These are the friends whose workouts you can read. `canSeeNotes` says whether that friend shares their workout notes with you. `canSeePrograms` and `canEditPrograms` say whether you can read and edit their programs.
 
 **Response:**
 
 ```json
 {
   "data": {
-    "friends": [{ "userId": "abc123", "nickname": "Sam", "canSeeNotes": false }]
+    "friends": [
+      {
+        "userId": "abc123",
+        "nickname": "Sam",
+        "canSeeNotes": false,
+        "canSeePrograms": true,
+        "canEditPrograms": false
+      }
+    ]
   }
 }
 ```
@@ -345,6 +353,71 @@ GET /api/v1/friends/:userId/history/:id
   }
 }
 ```
+
+### List a Friend's Programs
+
+```
+GET /api/v1/friends/:userId/programs
+```
+
+Needs the friend to share programs with you (`canSeePrograms`). Otherwise returns `404`.
+
+**Response:**
+
+```json
+{
+  "data": {
+    "ownerId": "abc123",
+    "programs": [{ "id": "k3j2h1g0", "name": "5/3/1 BBB", "isCurrent": true }]
+  }
+}
+```
+
+### Get a Friend's Program
+
+```
+GET /api/v1/friends/:userId/programs/:id
+```
+
+Returns the program as Liftoscript text, plus `base`. Pass `base` back unchanged when you update the program.
+
+**Response:**
+
+```json
+{
+  "data": {
+    "ownerId": "abc123",
+    "id": "k3j2h1g0",
+    "name": "5/3/1 BBB",
+    "isCurrent": true,
+    "canEdit": true,
+    "text": "# Week 1\n## Day 1\nSquat / 3x5 / 225lb\n",
+    "base": "eyJ2IjoxLCJvd25lcklkIjoiYWJjMTIzIn0"
+  }
+}
+```
+
+### Update a Friend's Program
+
+```
+PUT /api/v1/friends/:userId/programs/:id
+```
+
+Needs the friend to let you edit programs (`canEditPrograms`). Replaces the full program text. The program name and the friend's next day stay as they are. The change reaches the friend's devices on their next sync and shows in their program history as your edit.
+
+**Request body:**
+
+```json
+{ "text": "# Week 1\n## Day 1\nSquat / 5x5 / 205lb\n", "base": "eyJ2IjoxLCJvd25lcklkIjoiYWJjMTIzIn0" }
+```
+
+**Response:**
+
+```json
+{ "data": { "ownerId": "abc123", "id": "k3j2h1g0", "base": "eyJ2IjoxLCJvd25lcklkIjoiYWJjMTIzIn1" } }
+```
+
+Use the returned `base` for the next update. A `409` means the program changed since you read it, often because your friend finished a workout. Read it again and redo the edit. A `422` means the text does not parse, with line and column details.
 
 ### Playground
 

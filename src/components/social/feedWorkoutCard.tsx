@@ -12,6 +12,7 @@ import { HostConfig_resolveUrl } from "../../utils/hostConfig";
 import { Avatar } from "./avatar";
 import { ReactionBar } from "./reactionBar";
 import { DateUtils_format } from "../../utils/date";
+import { Follow_displayName } from "../../models/follow";
 
 interface IFeedIdentityProps {
   ownerId: string;
@@ -26,7 +27,7 @@ export function FeedIdentity(props: IFeedIdentityProps): JSX.Element {
       <Avatar seed={props.ownerId} nickname={props.nickname} size={40} />
       <View className="flex-1">
         <Text className="text-base font-semibold" numberOfLines={1}>
-          {props.nickname || props.ownerId}
+          {Follow_displayName(props.nickname)}
         </Text>
         <Text className="text-xs text-text-secondary" numberOfLines={1}>
           {props.subtitle}

@@ -57,7 +57,14 @@ import {
   ApiV1_updateMeasurement,
   ApiV1_deleteMeasurement,
 } from "../utils/apiv1Measurements";
-import { ApiV1_getFriendHistory, ApiV1_getFriendHistoryRecord, ApiV1_listFriends } from "../utils/apiv1Friends";
+import {
+  ApiV1_getFriendHistory,
+  ApiV1_getFriendHistoryRecord,
+  ApiV1_getFriendProgram,
+  ApiV1_listFriendPrograms,
+  ApiV1_listFriends,
+  ApiV1_updateFriendProgram,
+} from "../utils/apiv1Friends";
 import { IEither } from "../../src/utils/types";
 import { IMuscle, IExerciseKind } from "../../src/types";
 import * as v from "valibot";
@@ -247,6 +254,22 @@ export async function McpToolExecutor_execute(
 
     case "get_friend_history_record":
       return ApiV1_getFriendHistoryRecord(userId, String(args.userId ?? ""), parseInt(String(args.id), 10), di);
+
+    case "list_friend_programs":
+      return ApiV1_listFriendPrograms(userId, String(args.userId ?? ""), di);
+
+    case "get_friend_program":
+      return ApiV1_getFriendProgram(userId, String(args.userId ?? ""), String(args.id ?? ""), di);
+
+    case "update_friend_program":
+      return ApiV1_updateFriendProgram(
+        userId,
+        String(args.userId ?? ""),
+        String(args.id ?? ""),
+        args.text,
+        args.base,
+        di
+      );
 
     case "create_history_record":
       return ApiV1_createHistory(userId, user, args.text as string, deviceId, di);

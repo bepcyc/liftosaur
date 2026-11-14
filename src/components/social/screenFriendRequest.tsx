@@ -4,7 +4,12 @@ import { Text } from "../primitives/text";
 import { useNavOptions } from "../../navigation/useNavOptions";
 import { IDispatch } from "../../ducks/types";
 import { ISocialState } from "../../models/socialState";
-import { Follow_defaultPermissions, IFollowPermissions } from "../../models/follow";
+import {
+  Follow_defaultPermissions,
+  Follow_displayName,
+  Follow_setPermission,
+  IFollowPermissions,
+} from "../../models/follow";
 import {
   Thunk_approveFollow,
   Thunk_removeFollower,
@@ -31,7 +36,7 @@ function PermissionsCard(props: {
             <Text className="text-xs text-text-secondary">Exercises, sets, reps and weights. Always on.</Text>
           </View>
         </View>
-        <View className="flex-row items-center py-3">
+        <View className="flex-row items-center py-3 border-b border-border-cardpurple">
           <View className="flex-1 pr-2">
             <Text className="text-base font-semibold">Exercise & workout notes</Text>
             <Text className="text-xs text-text-secondary">Notes you write on exercises and workouts.</Text>
@@ -39,7 +44,35 @@ function PermissionsCard(props: {
           <Switch
             value={props.permissions.notes}
             testID="follow-permission-notes"
-            onValueChange={(notes: boolean) => props.onChange({ ...props.permissions, notes })}
+            onValueChange={(value: boolean) => props.onChange(Follow_setPermission(props.permissions, "notes", value))}
+          />
+        </View>
+        <View className="flex-row items-center py-3 border-b border-border-cardpurple">
+          <View className="flex-1 pr-2">
+            <Text className="text-base font-semibold">See my programs</Text>
+            <Text className="text-xs text-text-secondary">All your programs, read-only.</Text>
+          </View>
+          <Switch
+            value={props.permissions.programs}
+            testID="follow-permission-programs"
+            onValueChange={(value: boolean) =>
+              props.onChange(Follow_setPermission(props.permissions, "programs", value))
+            }
+          />
+        </View>
+        <View className="flex-row items-center py-3">
+          <View className="flex-1 pr-2">
+            <Text className="text-base font-semibold">Edit my programs</Text>
+            <Text className="text-xs text-text-secondary">
+              {props.name || "They"} can change your programs directly. Every change shows in the program's history.
+            </Text>
+          </View>
+          <Switch
+            value={props.permissions.programEdits}
+            testID="follow-permission-program-edits"
+            onValueChange={(value: boolean) =>
+              props.onChange(Follow_setPermission(props.permissions, "programEdits", value))
+            }
           />
         </View>
       </View>
@@ -127,7 +160,7 @@ export function ScreenFriendFollower(props: {
   return (
     <View className="items-center pt-6 px-gutter">
       <Avatar seed={follower.userId} nickname={follower.nickname} size={72} />
-      <Text className="mt-3 text-lg font-semibold">{follower.nickname || follower.userId}</Text>
+      <Text className="mt-3 text-lg font-semibold">{Follow_displayName(follower.nickname)}</Text>
       <PermissionsCard
         name={follower.nickname}
         permissions={follower.permissions}

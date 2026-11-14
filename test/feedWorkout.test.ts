@@ -12,7 +12,11 @@ describe("FeedWorkout_fromRecord", () => {
       notes: "felt tired",
       entries: [FriendsFixtures_entry({ notes: "elbow hurts" })],
     });
-    const workout = FeedWorkout_fromRecord(record, settings, "owner", { notes: false });
+    const workout = FeedWorkout_fromRecord(record, settings, "owner", {
+      notes: false,
+      programs: false,
+      programEdits: false,
+    });
     expect(workout.notes).to.equal(undefined);
     expect(workout.exercises[0].notes).to.equal(undefined);
   });
@@ -22,7 +26,11 @@ describe("FeedWorkout_fromRecord", () => {
       notes: "felt tired",
       entries: [FriendsFixtures_entry({ notes: "elbow hurts" })],
     });
-    const workout = FeedWorkout_fromRecord(record, settings, "owner", { notes: true });
+    const workout = FeedWorkout_fromRecord(record, settings, "owner", {
+      notes: true,
+      programs: false,
+      programEdits: false,
+    });
     expect(workout.notes).to.equal("felt tired");
     expect(workout.exercises[0].notes).to.equal("elbow hurts");
   });
@@ -40,7 +48,11 @@ describe("FeedWorkout_fromRecord", () => {
       userPromptedStateVars: {},
       intervals: [[1000, 2000]],
     });
-    const workout = FeedWorkout_fromRecord(record, settings, "owner", { notes: true });
+    const workout = FeedWorkout_fromRecord(record, settings, "owner", {
+      notes: true,
+      programs: false,
+      programEdits: false,
+    });
     const json = JSON.stringify(workout);
     expect(json).to.not.contain("secret");
     expect(json).to.not.contain("vars");
@@ -59,13 +71,21 @@ describe("FeedWorkout_fromRecord", () => {
         [50000, 60000],
       ],
     });
-    const workout = FeedWorkout_fromRecord(record, settings, "owner", { notes: false });
+    const workout = FeedWorkout_fromRecord(record, settings, "owner", {
+      notes: false,
+      programs: false,
+      programEdits: false,
+    });
     expect(workout.stats.durationMs).to.equal(20000);
   });
 
   it("resolves the exercise name with equipment from the owner's settings", () => {
     const record = FriendsFixtures_record(1000, "2026-11-10T10:00:00.000Z");
-    const workout = FeedWorkout_fromRecord(record, settings, "owner", { notes: false });
+    const workout = FeedWorkout_fromRecord(record, settings, "owner", {
+      notes: false,
+      programs: false,
+      programEdits: false,
+    });
     expect(workout.exercises[0].name).to.equal("Bench Press, Barbell");
     expect(workout.exercises[0].exerciseType).to.eql({ id: "benchPress", equipment: "barbell" });
   });
@@ -88,7 +108,11 @@ describe("FeedWorkout_fromRecord", () => {
     const record = FriendsFixtures_record(1000, "2026-11-10T10:00:00.000Z", {
       entries: [FriendsFixtures_entry({ exercise: { id: "abc123" } })],
     });
-    const workout = FeedWorkout_fromRecord(record, custom, "owner", { notes: false });
+    const workout = FeedWorkout_fromRecord(record, custom, "owner", {
+      notes: false,
+      programs: false,
+      programEdits: false,
+    });
     expect(workout.exercises[0].name).to.equal("Zercher Carry");
     expect(workout.exercises[0].exerciseType).to.equal(undefined);
     expect(workout.exercises[0].imageUrl).to.equal("https://example.com/z.png");

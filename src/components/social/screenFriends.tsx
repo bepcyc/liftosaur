@@ -5,6 +5,7 @@ import { Text } from "../primitives/text";
 import { IDispatch } from "../../ducks/types";
 import { useNavOptions } from "../../navigation/useNavOptions";
 import { ISocialState } from "../../models/socialState";
+import { Follow_accessSummary, Follow_displayName } from "../../models/follow";
 import { Thunk_pushScreen } from "../../ducks/thunks";
 import { Thunk_loadFollows, Thunk_removeFollowRequest } from "../../ducks/socialThunks";
 import { Button } from "../button";
@@ -34,6 +35,7 @@ function Section(props: { title: string; children: ReactNode }): JSX.Element {
 function PersonRow(props: {
   seed: string;
   nickname?: string;
+  isFriend: boolean;
   subtitle?: string;
   isLast: boolean;
   testID: string;
@@ -51,7 +53,7 @@ function PersonRow(props: {
       <Avatar seed={props.seed} nickname={props.nickname} size={44} />
       <View className="flex-1">
         <Text className="text-base font-semibold" numberOfLines={1}>
-          {props.nickname || "Liftosaur lifter"}
+          {props.isFriend ? Follow_displayName(props.nickname) : props.nickname || "Liftosaur lifter"}
         </Text>
         {props.subtitle ? <Text className="text-xs text-text-secondary">{props.subtitle}</Text> : null}
       </View>
@@ -125,6 +127,7 @@ export function ScreenFriends(props: IProps): JSX.Element {
               testID="friends-incoming"
               seed={request.requestId}
               nickname={request.nickname}
+              isFriend={false}
               subtitle="Wants to follow your training"
               isLast={i === follows.incoming.length - 1}
               right={
@@ -161,6 +164,7 @@ export function ScreenFriends(props: IProps): JSX.Element {
               testID="friends-following"
               seed={person.userId}
               nickname={person.nickname}
+              isFriend={true}
               subtitle={
                 person.lastWorkoutAt != null ? `Trained ${RelativeTime_ago(person.lastWorkoutAt, now)}` : undefined
               }
@@ -178,7 +182,8 @@ export function ScreenFriends(props: IProps): JSX.Element {
               testID="friends-follower"
               seed={person.userId}
               nickname={person.nickname}
-              subtitle={person.permissions.notes ? "Sees workouts and notes" : "Sees workouts"}
+              isFriend={true}
+              subtitle={Follow_accessSummary(person.permissions)}
               isLast={i === follows.followers.length - 1}
               onPress={() => props.dispatch(Thunk_pushScreen("friendFollower", { userId: person.userId }))}
             />
@@ -193,6 +198,7 @@ export function ScreenFriends(props: IProps): JSX.Element {
               testID="friends-outgoing"
               seed={request.requestId}
               nickname={request.nickname}
+              isFriend={false}
               subtitle="Awaiting approval"
               isLast={i === follows.outgoing.length - 1}
               right={

@@ -5,7 +5,9 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { getRawHandler, IHandler } from "../lambda";
 import { buildMockDi, IMockDI } from "./utils/mockDi";
 import { MockLogUtil } from "./utils/mockLogUtil";
-import { userTableNames } from "../lambda/dao/userDao";
+import { UserDao, userTableNames } from "../lambda/dao/userDao";
+import { Program_create } from "../src/models/program";
+import { PlannerProgram_evaluateText } from "../src/pages/planner/models/plannerProgram";
 import { UserRow_unpack } from "../lambda/utils/userRow";
 import { freeUsersTableNames } from "../lambda/dao/freeUserDao";
 import { Storage_getDefault } from "../src/models/storage";
@@ -325,7 +327,7 @@ Bench Press / 3x8 / 80lb`;
         followeeId,
         status,
         requestId: `req-${followeeId}`,
-        permissions: { notes },
+        permissions: { notes, programs: false, programEdits: false },
         createdAt: 1,
       });
     }
@@ -345,8 +347,8 @@ Bench Press / 3x8 / 80lb`;
       const body = parseBody(await get("/api/v1/friends"));
       const friends = body.data.friends.sort((a: any, b: any) => a.userId.localeCompare(b.userId));
       expect(friends).to.eql([
-        { userId: "nora", nickname: "Nora", canSeeNotes: true },
-        { userId: "sam", nickname: "Sam", canSeeNotes: false },
+        { userId: "nora", nickname: "Nora", canSeeNotes: true, canSeePrograms: false, canEditPrograms: false },
+        { userId: "sam", nickname: "Sam", canSeeNotes: false, canSeePrograms: false, canEditPrograms: false },
       ]);
     });
 
@@ -391,6 +393,41 @@ Bench Press / 3x8 / 80lb`;
       expect(parseBody(result).data).to.include({ ownerId: "sam", id: 2000 });
       expect((await get("/api/v1/friends/sam/history/99999")).statusCode).to.equal(404);
       expect((await get("/api/v1/friends/stranger/history/2000")).statusCode).to.equal(404);
+    });
+
+    it("reads and edits a friend's program over HTTP with the base from the read", async () => {
+      await new FollowDao(di).put({
+        followerId: userId,
+        followeeId: "sam",
+        status: "approved",
+        requestId: "req-sam",
+        permissions: { notes: false, programs: true, programEdits: true },
+        createdAt: 1,
+      });
+      await new UserDao(di).saveProgram("sam", {
+        ...Program_create("Sam's 5x5", "p1"),
+        clonedAt: 1000,
+        planner: {
+          vtype: "planner",
+          name: "Sam's 5x5",
+          weeks: PlannerProgram_evaluateText("# Week 1\n## Day 1\nSquat / 5x5 / 100lb\n"),
+        },
+      });
+      expect(parseBody(await get("/api/v1/friends/sam/programs")).data.programs).to.have.length(1);
+      const read = parseBody(await get("/api/v1/friends/sam/programs/p1")).data;
+      const put = (base: string): Promise<APIGatewayProxyResult> =>
+        handler(
+          buildEvent("PUT", "/api/v1/friends/sam/programs/p1", {
+            headers: apiHeaders(apiKey),
+            body: { text: read.text.replace("100lb", "90lb"), base },
+          }),
+          ctx
+        );
+      const first = await put(read.base);
+      expect(first.statusCode).to.equal(200);
+      expect((await put(read.base)).statusCode).to.equal(409);
+      expect((await put(parseBody(first).data.base)).statusCode).to.equal(200);
+      expect((await get("/api/v1/friends/nora/programs")).statusCode).to.equal(404);
     });
   });
 
