@@ -50,6 +50,19 @@ export function Follow_displayName(nickname: string | undefined): string {
   return nickname?.trim() || "A friend";
 }
 
+export const Follow_maxNicknameLength = 30;
+
+export function Follow_nicknameError(text: string): string | undefined {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return "Pick a nickname";
+  }
+  if (trimmed.length > Follow_maxNicknameLength) {
+    return `Use up to ${Follow_maxNicknameLength} characters`;
+  }
+  return undefined;
+}
+
 export function Follow_normalizePermissions(permissions: IFollowPermissions): IFollowPermissions {
   return { ...permissions, programs: permissions.programs || permissions.programEdits };
 }

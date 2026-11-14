@@ -32,13 +32,19 @@ export function NavScreenFriends(): JSX.Element {
   const social = useSocial();
   return (
     <NavScreenContent>
-      <ScreenFriends dispatch={dispatch} social={social} userId={state.user?.id} />
+      <ScreenFriends
+        dispatch={dispatch}
+        social={social}
+        userId={state.user?.id}
+        nickname={untrack(state.storage.settings.nickname)}
+      />
     </NavScreenContent>
   );
 }
 
 export function NavScreenFriendInvite(): JSX.Element {
   const state = useTrackedState();
+  const dispatch = useTrackedDispatch();
   const { service } = useAppContext();
   return (
     <NavScreenContent>
@@ -46,6 +52,7 @@ export function NavScreenFriendInvite(): JSX.Element {
         service={service}
         userId={state.user?.id ?? ""}
         nickname={untrack(state.storage.settings.nickname)}
+        dispatch={dispatch}
       />
     </NavScreenContent>
   );
@@ -58,7 +65,13 @@ export function NavScreenFollowInvite(): JSX.Element {
   const params = useParams<"followInvite">();
   return (
     <NavScreenContent>
-      <ScreenFollowInvite token={params.token} userId={state.user?.id} service={service} dispatch={dispatch} />
+      <ScreenFollowInvite
+        token={params.token}
+        userId={state.user?.id}
+        ownNickname={untrack(state.storage.settings.nickname)}
+        service={service}
+        dispatch={dispatch}
+      />
     </NavScreenContent>
   );
 }

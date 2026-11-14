@@ -13,6 +13,7 @@ import {
   Follow_applyPermissionsPatch,
   Follow_defaultPermissions,
   Follow_displayName,
+  Follow_nicknameError,
   Follow_normalizePermissions,
   Follow_parsePermissions,
   Follow_parsePermissionsPatch,
@@ -43,6 +44,14 @@ describe("Avatar", () => {
   it("shows a question mark without a nickname, never part of the user id", () => {
     expect(Avatar_initials(undefined)).to.equal("?");
     expect(Avatar_initials("   ")).to.equal("?");
+  });
+
+  it("asks for a non-empty nickname of at most 30 characters", () => {
+    expect(Follow_nicknameError("")).to.equal("Pick a nickname");
+    expect(Follow_nicknameError("   ")).to.equal("Pick a nickname");
+    expect(Follow_nicknameError("x".repeat(31))).to.contain("30");
+    expect(Follow_nicknameError(`  ${"x".repeat(30)}  `)).to.equal(undefined);
+    expect(Follow_nicknameError("Sam")).to.equal(undefined);
   });
 
   it("names a friend without a nickname 'A friend'", () => {

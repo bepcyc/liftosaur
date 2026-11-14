@@ -8,17 +8,31 @@ import { Button } from "../button";
 import { IconSpinner } from "../icons/iconSpinner";
 import { LinkShare_share } from "../../utils/linkShare";
 import { Avatar } from "./avatar";
+import { NicknameGate } from "./nicknameGate";
+import { IDispatch } from "../../ducks/types";
 
 interface IProps {
   service: Service;
   userId: string;
   nickname?: string;
+  dispatch: IDispatch;
 }
 
 type IInviteStatus = { kind: "loading" } | { kind: "ready"; url: string } | { kind: "error" };
 
 export function ScreenFriendInvite(props: IProps): JSX.Element {
   useNavOptions({ navTitle: "Invite a friend" });
+  if (!props.nickname?.trim()) {
+    return (
+      <View className="flex-1 pt-6 px-gutter">
+        <NicknameGate reason="Your friend sees it on the invite and in their friends list." dispatch={props.dispatch} />
+      </View>
+    );
+  }
+  return <FriendInviteCode service={props.service} userId={props.userId} nickname={props.nickname} />;
+}
+
+function FriendInviteCode(props: { service: Service; userId: string; nickname: string }): JSX.Element {
   const [status, setStatus] = useState<IInviteStatus>({ kind: "loading" });
   const [shareNote, setShareNote] = useState<string | undefined>(undefined);
 
@@ -43,7 +57,7 @@ export function ScreenFriendInvite(props: IProps): JSX.Element {
   return (
     <View className="items-center flex-1 pt-6 px-gutter">
       <Avatar seed={props.userId} nickname={props.nickname} size={64} />
-      <Text className="mt-3 text-lg font-semibold">{props.nickname || "You"}</Text>
+      <Text className="mt-3 text-lg font-semibold">{props.nickname}</Text>
       <Text className="mt-1 mb-6 text-center text-text-secondary">
         Have a friend scan this with their phone camera, or share the link.
       </Text>

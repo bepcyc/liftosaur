@@ -9,10 +9,12 @@ import { Thunk_loadFollows } from "../../ducks/socialThunks";
 import { Button } from "../button";
 import { IconSpinner } from "../icons/iconSpinner";
 import { Avatar } from "./avatar";
+import { NicknameGate } from "./nicknameGate";
 
 interface IProps {
   token: string;
   userId?: string;
+  ownNickname?: string;
   service: Service;
   dispatch: IDispatch;
 }
@@ -98,17 +100,24 @@ export function ScreenFollowInvite(props: IProps): JSX.Element {
               <Text className="mt-2 mb-6 text-center text-text-secondary">
                 They choose what you can see after approving.
               </Text>
-              <Button
-                kind="purple"
-                name="follow-invite-send"
-                data-testid="follow-invite-send"
-                testID="follow-invite-send"
-                className="w-full"
-                disabled={status.kind === "sending"}
-                onClick={() => send(nickname)}
-              >
-                Send follow request
-              </Button>
+              {!props.ownNickname?.trim() ? (
+                <NicknameGate
+                  reason="They see it on your request and in their friends list."
+                  dispatch={props.dispatch}
+                />
+              ) : (
+                <Button
+                  kind="purple"
+                  name="follow-invite-send"
+                  data-testid="follow-invite-send"
+                  testID="follow-invite-send"
+                  className="w-full"
+                  disabled={status.kind === "sending"}
+                  onClick={() => send(nickname)}
+                >
+                  Send follow request
+                </Button>
+              )}
             </>
           )}
         </>

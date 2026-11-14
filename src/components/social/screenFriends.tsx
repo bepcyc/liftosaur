@@ -14,11 +14,13 @@ import { IconArrowRight } from "../icons/iconArrowRight";
 import { IconClose } from "../icons/iconClose";
 import { IconUser } from "../icons/iconUser";
 import { RelativeTime_ago } from "../../utils/relativeTime";
+import { NicknameGate } from "./nicknameGate";
 
 interface IProps {
   dispatch: IDispatch;
   social?: ISocialState;
   userId?: string;
+  nickname?: string;
 }
 
 function Section(props: { title: string; children: ReactNode }): JSX.Element {
@@ -107,6 +109,11 @@ export function ScreenFriends(props: IProps): JSX.Element {
           </Text>
         </View>
       ) : null}
+      {!isEmpty && !props.nickname?.trim() && (
+        <View className="p-4 mt-4 border rounded-2xl border-border-cardpurple bg-background-cardpurple">
+          <NicknameGate reason="Your friends see you as “A friend” until you set one." dispatch={props.dispatch} />
+        </View>
+      )}
       <View className="mt-4">
         <Button
           kind="purple"
