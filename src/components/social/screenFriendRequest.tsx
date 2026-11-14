@@ -49,10 +49,12 @@ function PermissionsCard(props: {
             onValueChange={(value: boolean) => props.onChange(Follow_setPermission(props.permissions, "notes", value))}
           />
         </View>
-        <View className="flex-row items-center py-3 border-b border-border-cardpurple">
+        <View className="flex-row items-center py-3">
           <View className="flex-1 pr-2">
-            <Text className="text-base font-semibold">See my programs</Text>
-            <Text className="text-xs text-text-secondary">All your programs, read-only.</Text>
+            <Text className="text-base font-semibold">See and edit my programs</Text>
+            <Text className="text-xs text-text-secondary">
+              {props.name || "They"} can change your programs directly. Every change shows in the program's history.
+            </Text>
           </View>
           <Switch
             value={props.permissions.programs}
@@ -60,22 +62,6 @@ function PermissionsCard(props: {
             testID="follow-permission-programs"
             onValueChange={(value: boolean) =>
               props.onChange(Follow_setPermission(props.permissions, "programs", value))
-            }
-          />
-        </View>
-        <View className="flex-row items-center py-3">
-          <View className="flex-1 pr-2">
-            <Text className="text-base font-semibold">Edit my programs</Text>
-            <Text className="text-xs text-text-secondary">
-              {props.name || "They"} can change your programs directly. Every change shows in the program's history.
-            </Text>
-          </View>
-          <Switch
-            value={props.permissions.programEdits}
-            disabled={props.isDisabled}
-            testID="follow-permission-program-edits"
-            onValueChange={(value: boolean) =>
-              props.onChange(Follow_setPermission(props.permissions, "programEdits", value))
             }
           />
         </View>

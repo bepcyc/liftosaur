@@ -362,7 +362,7 @@ const mcpToolsWithoutOutputSchema: Omit<IMcpToolDef, "outputSchema">[] = [
   {
     name: "list_friends",
     description:
-      "List the people the user follows in Liftosaur and whose workouts the user may read. Returns userId, nickname, canSeeNotes (whether that friend shares workout notes), canSeePrograms (list_friend_programs and get_friend_program work) and canEditPrograms (update_friend_program works). Pass a userId to get_friend_history.",
+      "List the people the user follows in Liftosaur and whose workouts the user may read. Returns userId, nickname, canSeeNotes (whether that friend shares workout notes) and canEditPrograms (list_friend_programs, get_friend_program and update_friend_program work). Pass a userId to get_friend_history.",
     annotations: { title: "List friends", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     inputSchema: {
       type: "object",
@@ -405,7 +405,7 @@ const mcpToolsWithoutOutputSchema: Omit<IMcpToolDef, "outputSchema">[] = [
   },
   {
     name: "list_friend_programs",
-    description: `List a friend's programs: id, name, and whether it is the one they run now. The friend must share programs with the user (canSeePrograms in list_friends). ${FRIEND_TEXT_WARNING}`,
+    description: `List a friend's programs: id, name, and whether it is the one they run now. The friend must let the user edit programs (canEditPrograms in list_friends). ${FRIEND_TEXT_WARNING}`,
     annotations: { title: "List friend's programs", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     inputSchema: {
       type: "object",
@@ -417,7 +417,7 @@ const mcpToolsWithoutOutputSchema: Omit<IMcpToolDef, "outputSchema">[] = [
   },
   {
     name: "get_friend_program",
-    description: `Read a friend's program as Liftoscript text. Returns text, canEdit, and base. Pass base back to update_friend_program unchanged. Read get_liftoscript_reference before changing the text. ${FRIEND_TEXT_WARNING}`,
+    description: `Read a friend's program as Liftoscript text. Returns text and base. Pass base back to update_friend_program unchanged. Read get_liftoscript_reference before changing the text. ${FRIEND_TEXT_WARNING}`,
     annotations: { title: "Get friend's program", readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     inputSchema: {
       type: "object",

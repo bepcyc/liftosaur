@@ -116,7 +116,6 @@ export async function ApiV1_getFriendProgram(
     id: string;
     name: string;
     isCurrent: boolean;
-    canEdit: boolean;
     text: string;
     base: string;
   }>
@@ -125,7 +124,7 @@ export async function ApiV1_getFriendProgram(
   if (!result.success) {
     return result;
   }
-  const { exported, base, canEdit, isCurrent } = result.data;
+  const { exported, base, isCurrent } = result.data;
   return {
     success: true,
     data: {
@@ -133,7 +132,6 @@ export async function ApiV1_getFriendProgram(
       id: exported.program.id,
       name: exported.program.name,
       isCurrent,
-      canEdit,
       text: PlannerProgram_generateFullText(exported.program.planner?.weeks ?? []),
       base,
     },

@@ -836,7 +836,7 @@ describe("MCP", () => {
         followeeId: "sam",
         status: "approved",
         requestId: "req-sam",
-        permissions: { notes: false, programs: false, programEdits: false },
+        permissions: { notes: false, programs: false },
         createdAt: 1,
       });
       const record = FriendsFixtures_record(1000, "2026-11-01T10:00:00.000Z", { notes: "private" });
@@ -856,9 +856,7 @@ describe("MCP", () => {
     it("lists friends and reads their history through OAuth and API keys", async () => {
       for (const token of [await createOauthToken(), await createApiKey()]) {
         const friends = JSON.parse((await callTool(token, "list_friends")).content[0].text).friends;
-        expect(friends).to.eql([
-          { userId: "sam", nickname: "Sam", canSeeNotes: false, canSeePrograms: false, canEditPrograms: false },
-        ]);
+        expect(friends).to.eql([{ userId: "sam", nickname: "Sam", canSeeNotes: false, canEditPrograms: false }]);
         const history = await callTool(token, "get_friend_history", { userId: "sam" });
         expect(history.isError).to.be.undefined;
         const page = JSON.parse(history.content[0].text);
@@ -877,7 +875,7 @@ describe("MCP", () => {
       expect(result.isError).to.equal(true);
     });
 
-    async function shareProgram(permissions: { programs: boolean; programEdits: boolean }): Promise<void> {
+    async function shareProgram(permissions: { programs: boolean }): Promise<void> {
       await new FollowDao(di).put({
         followerId: userId,
         followeeId: "sam",
@@ -896,14 +894,14 @@ describe("MCP", () => {
     const samProgram = "# Week 1\n## Day 1\nSquat / 5x5 / 100lb\n";
 
     it("reads a friend's program and edits it with the base from the read", async () => {
-      await shareProgram({ programs: true, programEdits: true });
+      await shareProgram({ programs: true });
       const token = await createOauthToken();
       const list = JSON.parse((await callTool(token, "list_friend_programs", { userId: "sam" })).content[0].text);
       expect(list.programs.map((p: any) => p.id)).to.eql(["p1"]);
       const read = JSON.parse(
         (await callTool(token, "get_friend_program", { userId: "sam", id: "p1" })).content[0].text
       );
-      expect(read).to.include({ ownerId: "sam", id: "p1", canEdit: true });
+      expect(read).to.include({ ownerId: "sam", id: "p1" });
       expect(read.text).to.contain("Squat / 5x5 / 100lb");
 
       const text = read.text.replace("100lb", "90lb");
@@ -914,21 +912,18 @@ describe("MCP", () => {
       expect(stale.content[0].text).to.contain("changed since you read it");
     });
 
-    it("refuses update_friend_program without the edit permission or a base", async () => {
-      await shareProgram({ programs: true, programEdits: false });
+    it("refuses reading and updating without the programs permission, and updating without a base", async () => {
+      await shareProgram({ programs: false });
       const token = await createOauthToken();
-      const read = JSON.parse(
-        (await callTool(token, "get_friend_program", { userId: "sam", id: "p1" })).content[0].text
-      );
-      expect(read.canEdit).to.equal(false);
+      expect((await callTool(token, "get_friend_program", { userId: "sam", id: "p1" })).isError).to.equal(true);
       const denied = await callTool(token, "update_friend_program", {
         userId: "sam",
         id: "p1",
         text: samProgram,
-        base: read.base,
+        base: "any",
       });
       expect(denied.isError).to.equal(true);
-      await shareProgram({ programs: true, programEdits: true });
+      await shareProgram({ programs: true });
       const noBase = await callTool(token, "update_friend_program", { userId: "sam", id: "p1", text: samProgram });
       expect(noBase.isError).to.equal(true);
     });

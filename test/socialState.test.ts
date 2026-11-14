@@ -43,7 +43,6 @@ function response(accountId: string, ids: number[], cursor?: string): IFeedRespo
       FeedWorkout_fromRecord(FriendsFixtures_record(id, `2026-11-0${id % 9}T10:00:00.000Z`), Settings_build(), "f1", {
         notes: false,
         programs: false,
-        programEdits: false,
       })
     ),
     reactions: {},
@@ -230,10 +229,9 @@ describe("SocialState", () => {
       exported: { program, customExercises: {}, version: "1", settings: {} },
       settings: Settings_build(),
       base: "b",
-      canEdit: false,
     };
     function follows(programs: boolean): IFollowsResponse {
-      const permissions = { notes: false, programs, programEdits: false };
+      const permissions = { notes: false, programs };
       return {
         accountId: "me",
         following: [{ userId: "sam", permissions }],

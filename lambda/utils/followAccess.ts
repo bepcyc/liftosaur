@@ -1,7 +1,7 @@
 import { IFollowPermissions } from "../../src/models/follow";
 import { IFollowDao } from "../dao/followDao";
 
-const ownerPermissions: IFollowPermissions = { notes: true, programs: true, programEdits: true };
+const ownerPermissions: IFollowPermissions = { notes: true, programs: true };
 
 export function FollowAccess_permissions(
   actorId: string,

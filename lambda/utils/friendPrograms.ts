@@ -24,19 +24,16 @@ import { FieldRevision_programPlanner } from "../../src/utils/fieldRevision";
 import { VersionTrackerUtils_SERVER_DEVICE_ID } from "../../src/models/versionTracker/utils";
 import { PlannerProgram_generateFullText } from "../../src/pages/planner/models/plannerProgram";
 
-export type IFriendProgramNeed = "programs" | "programEdits";
-
 export async function FriendPrograms_access(
   di: IDI,
   viewerId: string,
-  ownerId: string,
-  need: IFriendProgramNeed
+  ownerId: string
 ): Promise<IApiResult<IFollowPermissions>> {
   if (ownerId === viewerId) {
     return err(400, "invalid_input", "That is your own account. Use the program tools for your own programs.");
   }
   const permissions = FollowAccess_permissions(viewerId, ownerId, await new FollowDao(di).get(viewerId, ownerId));
-  if (permissions == null || !permissions[need]) {
+  if (permissions == null || !permissions.programs) {
     return err(404, "not_found", "No friend with this id shares programs with you. Use list_friends.");
   }
   return { success: true, data: permissions };
@@ -76,7 +73,7 @@ export async function FriendPrograms_list(
   viewerId: string,
   ownerId: string
 ): Promise<IApiResult<{ programs: IFriendProgramSummary[] }>> {
-  const access = await FriendPrograms_access(di, viewerId, ownerId, "programs");
+  const access = await FriendPrograms_access(di, viewerId, ownerId);
   if (!access.success) {
     return access;
   }
@@ -102,7 +99,7 @@ export async function FriendPrograms_get(
   ownerId: string,
   programId: string
 ): Promise<IApiResult<IFriendProgramContext & { isCurrent: boolean }>> {
-  const access = await FriendPrograms_access(di, viewerId, ownerId, "programs");
+  const access = await FriendPrograms_access(di, viewerId, ownerId);
   if (!access.success) {
     return access;
   }
@@ -121,7 +118,6 @@ export async function FriendPrograms_get(
       exported: Program_exportProgram(program, owner.data.storage.settings),
       settings: FriendProjection_settings(owner.data.storage.settings, access.data),
       base: baseFor(owner.data, program),
-      canEdit: access.data.programEdits,
       isCurrent: owner.data.storage.currentProgramId === program.id,
     },
   };
@@ -138,7 +134,7 @@ export async function FriendPrograms_editorContext(
   ownerId: string,
   programId: string
 ): Promise<IApiResult<IFriendProgramEditorContext>> {
-  const access = await FriendPrograms_access(di, viewerId, ownerId, "programEdits");
+  const access = await FriendPrograms_access(di, viewerId, ownerId);
   if (!access.success) {
     return access;
   }
@@ -173,7 +169,7 @@ export async function FriendPrograms_update(
   programId: string,
   args: { text: unknown; base: unknown }
 ): Promise<IApiResult<{ id: string; base: string }>> {
-  const access = await FriendPrograms_access(di, editorId, ownerId, "programEdits");
+  const access = await FriendPrograms_access(di, editorId, ownerId);
   if (!access.success) {
     return access;
   }

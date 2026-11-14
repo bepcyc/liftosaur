@@ -50,7 +50,7 @@ export function ScreenFriendProgram(props: IProps): JSX.Element {
       </View>
     );
   }
-  const editButton = context.canEdit ? (
+  const editButton = (
     <View className="px-4 pb-2">
       <Button
         kind="purple"
@@ -63,7 +63,7 @@ export function ScreenFriendProgram(props: IProps): JSX.Element {
         Edit on the web
       </Button>
     </View>
-  ) : undefined;
+  );
   return (
     <ProgramPreview
       program={context.exported.program}

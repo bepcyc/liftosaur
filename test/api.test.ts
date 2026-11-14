@@ -327,7 +327,7 @@ Bench Press / 3x8 / 80lb`;
         followeeId,
         status,
         requestId: `req-${followeeId}`,
-        permissions: { notes, programs: false, programEdits: false },
+        permissions: { notes, programs: false },
         createdAt: 1,
       });
     }
@@ -347,8 +347,8 @@ Bench Press / 3x8 / 80lb`;
       const body = parseBody(await get("/api/v1/friends"));
       const friends = body.data.friends.sort((a: any, b: any) => a.userId.localeCompare(b.userId));
       expect(friends).to.eql([
-        { userId: "nora", nickname: "Nora", canSeeNotes: true, canSeePrograms: false, canEditPrograms: false },
-        { userId: "sam", nickname: "Sam", canSeeNotes: false, canSeePrograms: false, canEditPrograms: false },
+        { userId: "nora", nickname: "Nora", canSeeNotes: true, canEditPrograms: false },
+        { userId: "sam", nickname: "Sam", canSeeNotes: false, canEditPrograms: false },
       ]);
     });
 
@@ -401,7 +401,7 @@ Bench Press / 3x8 / 80lb`;
         followeeId: "sam",
         status: "approved",
         requestId: "req-sam",
-        permissions: { notes: false, programs: true, programEdits: true },
+        permissions: { notes: false, programs: true },
         createdAt: 1,
       });
       await new UserDao(di).saveProgram("sam", {

@@ -15,7 +15,6 @@ import {
   Follow_displayName,
   Follow_needsNickname,
   Follow_parseNickname,
-  Follow_normalizePermissions,
   Follow_parsePermissions,
   Follow_parsePermissionsPatch,
   Follow_setPermission,
@@ -29,7 +28,7 @@ function follow(overrides: Partial<IFollowDao> = {}): IFollowDao {
     followeeId: "b",
     status: "approved",
     requestId: "r1",
-    permissions: { notes: false, programs: false, programEdits: false },
+    permissions: { notes: false, programs: false },
     createdAt: 1,
     ...overrides,
   };
@@ -129,11 +128,11 @@ describe("RelativeTime_ago", () => {
 
 describe("FollowAccess", () => {
   it("gives the owner full access", () => {
-    expect(FollowAccess_permissions("b", "b", undefined)).to.eql({ notes: true, programs: true, programEdits: true });
+    expect(FollowAccess_permissions("b", "b", undefined)).to.eql({ notes: true, programs: true });
   });
 
   it("gives an approved follower the stored permissions", () => {
-    const permissions = { notes: true, programs: true, programEdits: false };
+    const permissions = { notes: true, programs: false };
     expect(FollowAccess_permissions("a", "b", follow({ permissions }))).to.eql(permissions);
   });
 
@@ -155,49 +154,41 @@ describe("FollowAccess", () => {
 
 describe("Follow permissions", () => {
   it("parses rows saved before program permissions existed as no program access", () => {
-    expect(Follow_parsePermissions({ notes: true })).to.eql({ notes: true, programs: false, programEdits: false });
+    expect(Follow_parsePermissions({ notes: true })).to.eql({ notes: true, programs: false });
     expect(Follow_parsePermissions({ programs: true })).to.equal(undefined);
     expect(Follow_parsePermissions("yes")).to.equal(undefined);
   });
 
-  it("turns on seeing programs with editing them", () => {
-    expect(Follow_parsePermissions({ notes: false, programEdits: true })).to.eql({
+  it("turns only an old edit grant into program access, never a see-only one", () => {
+    expect(Follow_parsePermissions({ notes: false, programs: true, programEdits: true })).to.eql({
       notes: false,
       programs: true,
-      programEdits: true,
     });
-    expect(Follow_normalizePermissions({ notes: false, programs: false, programEdits: true }).programs).to.equal(true);
+    expect(Follow_parsePermissions({ notes: false, programs: true, programEdits: false })).to.eql({
+      notes: false,
+      programs: false,
+    });
+    expect(Follow_parsePermissions({ notes: false, programs: true })).to.eql({ notes: false, programs: true });
+    expect(Follow_parsePermissionsPatch({ programs: true, programEdits: false })).to.eql({ programs: false });
   });
 
-  it("turns off editing programs with seeing them", () => {
-    const all = { notes: true, programs: true, programEdits: true };
-    expect(Follow_setPermission(all, "programs", false)).to.eql({ notes: true, programs: false, programEdits: false });
-    expect(Follow_setPermission(all, "programEdits", false)).to.eql({
-      notes: true,
-      programs: true,
-      programEdits: false,
-    });
-    expect(Follow_setPermission(Follow_defaultPermissions, "programEdits", true).programs).to.equal(true);
+  it("sets one permission without touching the other", () => {
+    expect(Follow_setPermission(Follow_defaultPermissions, "programs", true)).to.eql({ notes: false, programs: true });
   });
 
   it("keeps permissions an older client does not send", () => {
-    const all = { notes: true, programs: true, programEdits: true };
+    const all = { notes: true, programs: true };
     const fromOldClient = Follow_parsePermissionsPatch({ notes: false, future: "ignored" });
     expect(fromOldClient).to.eql({ notes: false });
     expect(Follow_applyPermissionsPatch(all, fromOldClient ?? {})).to.eql({ ...all, notes: false });
-    expect(Follow_applyPermissionsPatch(all, { programs: false }).programEdits).to.equal(false);
     expect(Follow_parsePermissionsPatch({ notes: "yes" })).to.equal(undefined);
     expect(Follow_parsePermissionsPatch({})).to.equal(undefined);
   });
 
   it("summarizes what a follower has access to", () => {
     expect(Follow_accessSummary(Follow_defaultPermissions)).to.equal("Sees workouts");
-    expect(Follow_accessSummary({ notes: true, programs: false, programEdits: false })).to.equal(
-      "Sees workouts and notes"
-    );
-    expect(Follow_accessSummary({ notes: true, programs: true, programEdits: true })).to.equal(
-      "Sees workouts, notes and programs, edits programs"
-    );
+    expect(Follow_accessSummary({ notes: true, programs: false })).to.equal("Sees workouts and notes");
+    expect(Follow_accessSummary({ notes: true, programs: true })).to.equal("Sees workouts and notes, edits programs");
   });
 });
 

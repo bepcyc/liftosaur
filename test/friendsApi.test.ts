@@ -79,7 +79,7 @@ describe("Friends API", () => {
     follower: string,
     followee: string,
     notes: boolean = false,
-    programs: { programs?: boolean; programEdits?: boolean } = {}
+    programs: { programs?: boolean } = {}
   ): Promise<string> {
     const invite = body(await call(event("POST", "/api/follow/invites", followee))).data;
     const request = body(await call(event("POST", `/api/follow/invites/${invite.token}/request`, follower))).data;
@@ -294,46 +294,48 @@ describe("Friends API", () => {
   });
 
   it("changes only the permissions a request names", async () => {
-    await befriend("anna", "boris", true, { programEdits: true });
+    await befriend("anna", "boris", true, { programs: true });
     const result = await call(
       event("PUT", "/api/follows/followers/anna/permissions", "boris", { body: { permissions: { notes: false } } })
     );
     expect(result.statusCode).to.equal(200);
     const follows = body(await call(event("GET", "/api/follows", "anna"))).data;
-    expect(follows.following[0].permissions).to.eql({ notes: false, programs: true, programEdits: true });
+    expect(follows.following[0].permissions).to.eql({ notes: false, programs: true });
   });
 
   describe("friend programs", () => {
     const original = "# Week 1\n## Day 1\nSquat / 3x5 / 100lb\n";
     const deload = "# Week 1\n## Day 1\nSquat / 5x5 / 90lb\n";
 
-    it("shows programs only with the programs permission, and edit implies see", async () => {
+    it("shows programs only with the programs permission", async () => {
       await addProgram("boris", original);
       await befriend("anna", "boris");
       expect((await call(event("GET", "/api/friends/boris/programs", "anna"))).statusCode).to.equal(404);
 
-      await befriend("carl", "boris", false, { programEdits: true });
+      await befriend("carl", "boris", false, { programs: true });
       const list = body(await call(event("GET", "/api/friends/boris/programs", "carl"))).data;
       expect(list.programs).to.eql([{ id: "p1", name: "Strength", isCurrent: true }]);
       const follows = body(await call(event("GET", "/api/follows", "carl"))).data;
-      expect(follows.following[0].permissions).to.eql({ notes: false, programs: true, programEdits: true });
+      expect(follows.following[0].permissions).to.eql({ notes: false, programs: true });
     });
 
-    it("reads a program with its context and refuses edits without the edit permission", async () => {
+    it("reads a program with its context, and refuses reads and edits without the programs permission", async () => {
       await addProgram("boris", original);
       await befriend("anna", "boris", false, { programs: true });
       const program = body(await call(event("GET", "/api/friends/boris/programs/p1", "anna"))).data;
-      expect(program.canEdit).to.equal(false);
       expect(program.exported.program.id).to.equal("p1");
+
+      await befriend("carl", "boris", false);
+      expect((await call(event("GET", "/api/friends/boris/programs/p1", "carl"))).statusCode).to.equal(404);
       const save = await call(
-        event("POST", "/api/friends/boris/programs/p1", "anna", { body: { text: deload, base: program.base } })
+        event("POST", "/api/friends/boris/programs/p1", "carl", { body: { text: deload, base: program.base } })
       );
       expect(save.statusCode).to.equal(404);
     });
 
     it("writes the owner's program, keeps nextDay, and rejects a save from an old base", async () => {
       await addProgram("boris", original);
-      await befriend("anna", "boris", false, { programEdits: true });
+      await befriend("anna", "boris", false, { programs: true });
       const read = body(await call(event("GET", "/api/friends/boris/programs/p1", "anna"))).data;
 
       const first = await call(
@@ -358,7 +360,7 @@ describe("Friends API", () => {
 
     it("tells the owner who edited what, and marks the edits seen", async () => {
       await addProgram("boris", original);
-      await befriend("anna", "boris", false, { programEdits: true });
+      await befriend("anna", "boris", false, { programs: true });
       const read = body(await call(event("GET", "/api/friends/boris/programs/p1", "anna"))).data;
       await call(event("POST", "/api/friends/boris/programs/p1", "anna", { body: { text: deload, base: read.base } }));
 
@@ -420,7 +422,7 @@ describe("Friends API", () => {
 
     it("removes program edits with the editor's and the owner's accounts", async () => {
       await addProgram("boris", original);
-      await befriend("anna", "boris", false, { programEdits: true });
+      await befriend("anna", "boris", false, { programs: true });
       const read = body(await call(event("GET", "/api/friends/boris/programs/p1", "anna"))).data;
       await call(event("POST", "/api/friends/boris/programs/p1", "anna", { body: { text: deload, base: read.base } }));
       expect(Object.keys(di.dynamo.data[programEditTableNames.prod.programEdits] || {})).to.have.length(1);
@@ -428,13 +430,13 @@ describe("Friends API", () => {
       expect(Object.keys(di.dynamo.data[programEditTableNames.prod.programEdits] || {})).to.eql([]);
     });
 
-    it("serves the coach web editor only with the edit permission", async () => {
+    it("serves the coach web editor only with the programs permission", async () => {
       await addProgram("boris", original);
-      await befriend("anna", "boris", false, { programs: true });
+      await befriend("anna", "boris", false);
       expect((await call(event("GET", "/planner/friend/boris/p1", "anna"))).statusCode).to.equal(404);
       expect((await call(event("GET", "/planner/friend/boris/p1", undefined))).statusCode).to.equal(302);
 
-      await befriend("carl", "boris", false, { programEdits: true });
+      await befriend("carl", "boris", false, { programs: true });
       const page = await call(event("GET", "/planner/friend/boris/p1", "carl"));
       expect(page.statusCode).to.equal(200);
       expect(page.body).to.contain("Editing Boris");
@@ -448,7 +450,7 @@ describe("Friends API", () => {
       user.storage.settings.exerciseData = { squat_barbell: { rm1: { value: 140, unit: "kg" }, notes: "SECRET knee" } };
       await di.dynamo.put({ tableName: userTableNames.prod.users, item: user });
       await addRecord("boris", 1000, "2026-11-01T10:00:00.000Z", "SECRET workout");
-      await befriend("carl", "boris", false, { programEdits: true });
+      await befriend("carl", "boris", false, { programs: true });
 
       const responses = await Promise.all([
         call(event("GET", "/api/feed", "carl")),

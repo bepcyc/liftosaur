@@ -3,7 +3,6 @@ import { ObjectUtils_keys } from "../utils/object";
 export interface IFollowPermissions {
   notes: boolean;
   programs: boolean;
-  programEdits: boolean;
 }
 
 export interface IFollowPerson {
@@ -24,7 +23,6 @@ export interface IApiFriend {
   userId: string;
   nickname?: string;
   canSeeNotes: boolean;
-  canSeePrograms: boolean;
   canEditPrograms: boolean;
 }
 
@@ -42,7 +40,7 @@ export interface IFollowsResponse {
   outgoing: IFollowRequest[];
 }
 
-export const Follow_defaultPermissions: IFollowPermissions = { notes: false, programs: false, programEdits: false };
+export const Follow_defaultPermissions: IFollowPermissions = { notes: false, programs: false };
 
 export const Follow_maxFollows = 100;
 
@@ -67,15 +65,9 @@ export function Follow_needsNickname(nickname: string | undefined): boolean {
   return !nickname?.trim();
 }
 
-export function Follow_normalizePermissions(permissions: IFollowPermissions): IFollowPermissions {
-  return { ...permissions, programs: permissions.programs || permissions.programEdits };
-}
-
 export function Follow_accessSummary(permissions: IFollowPermissions): string {
-  const seen = ["workouts", permissions.notes ? "notes" : undefined, permissions.programs ? "programs" : undefined];
-  const list = seen.filter((s): s is string => s != null);
-  const sees = `Sees ${list.length > 1 ? `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}` : list[0]}`;
-  return permissions.programEdits ? `${sees}, edits programs` : sees;
+  const sees = permissions.notes ? "Sees workouts and notes" : "Sees workouts";
+  return permissions.programs ? `${sees}, edits programs` : sees;
 }
 
 export function Follow_setPermission(
@@ -83,11 +75,13 @@ export function Follow_setPermission(
   key: keyof IFollowPermissions,
   value: boolean
 ): IFollowPermissions {
-  const next = { ...permissions, [key]: value };
-  if (key === "programs" && !value) {
-    next.programEdits = false;
-  }
-  return Follow_normalizePermissions(next);
+  return { ...permissions, [key]: value };
+}
+
+// Rows and dev builds from before see and edit merged carry a separate programEdits flag. Only an edit
+// grant becomes the merged permission, so a see-only grant never turns into edit access.
+function programsFlag(record: Record<string, unknown>): unknown {
+  return "programEdits" in record ? record.programEdits : record.programs;
 }
 
 export function Follow_parsePermissionsPatch(value: unknown): Partial<IFollowPermissions> | undefined {
@@ -95,9 +89,10 @@ export function Follow_parsePermissionsPatch(value: unknown): Partial<IFollowPer
     return undefined;
   }
   const record: Record<string, unknown> = { ...value };
+  const flags: Record<keyof IFollowPermissions, unknown> = { notes: record.notes, programs: programsFlag(record) };
   const patch: Partial<IFollowPermissions> = {};
-  for (const key of ObjectUtils_keys(Follow_defaultPermissions)) {
-    const flag = record[key];
+  for (const key of ObjectUtils_keys(flags)) {
+    const flag = flags[key];
     if (typeof flag === "boolean") {
       patch[key] = flag;
     } else if (flag !== undefined) {
@@ -111,20 +106,16 @@ export function Follow_applyPermissionsPatch(
   current: IFollowPermissions,
   patch: Partial<IFollowPermissions>
 ): IFollowPermissions {
-  const next = { ...current, ...patch };
-  if (patch.programs === false && patch.programEdits === undefined) {
-    next.programEdits = false;
-  }
-  return Follow_normalizePermissions(next);
+  return { ...current, ...patch };
 }
 
 export function Follow_parsePermissions(value: unknown): IFollowPermissions | undefined {
   if (value == null || typeof value !== "object") {
     return undefined;
   }
-  const { notes, programs, programEdits } = value as Record<string, unknown>;
-  if (typeof notes !== "boolean") {
+  const record: Record<string, unknown> = { ...value };
+  if (typeof record.notes !== "boolean") {
     return undefined;
   }
-  return Follow_normalizePermissions({ notes, programs: programs === true, programEdits: programEdits === true });
+  return { notes: record.notes, programs: programsFlag(record) === true };
 }

@@ -31,7 +31,7 @@ function privateRecord(): ReturnType<typeof FriendsFixtures_record> {
 describe("FriendRecord_project", () => {
   it("serializes a record full of private fields like a minimal one", () => {
     const settings = Settings_build();
-    const projected = FriendRecord_project(privateRecord(), { notes: false, programs: false, programEdits: false });
+    const projected = FriendRecord_project(privateRecord(), { notes: false, programs: false });
     const minimal = FriendsFixtures_record(1000, date, {
       programId: "friend",
       entries: [
@@ -46,7 +46,7 @@ describe("FriendRecord_project", () => {
   });
 
   it("drops private fields and the owner's program id", () => {
-    const projected = FriendRecord_project(privateRecord(), { notes: false, programs: false, programEdits: false });
+    const projected = FriendRecord_project(privateRecord(), { notes: false, programs: false });
     expect(projected.programId).to.equal("friend");
     expect(projected.changes).to.equal(undefined);
     expect(projected.userPromptedStateVars).to.equal(undefined);
@@ -60,11 +60,11 @@ describe("FriendRecord_project", () => {
 
   it("keeps notes only with the notes permission", () => {
     const hidden = LiftohistorySerializer_serialize(
-      FriendRecord_project(privateRecord(), { notes: false, programs: false, programEdits: false }),
+      FriendRecord_project(privateRecord(), { notes: false, programs: false }),
       Settings_build()
     );
     const shown = LiftohistorySerializer_serialize(
-      FriendRecord_project(privateRecord(), { notes: true, programs: false, programEdits: false }),
+      FriendRecord_project(privateRecord(), { notes: true, programs: false }),
       Settings_build()
     );
     expect(hidden).to.not.contain("slept badly");
@@ -75,8 +75,6 @@ describe("FriendRecord_project", () => {
 
   it("keeps an ad hoc workout ad hoc", () => {
     const record = FriendsFixtures_record(1000, date, { programId: emptyProgramId });
-    expect(FriendRecord_project(record, { notes: false, programs: false, programEdits: false }).programId).to.equal(
-      emptyProgramId
-    );
+    expect(FriendRecord_project(record, { notes: false, programs: false }).programId).to.equal(emptyProgramId);
   });
 });

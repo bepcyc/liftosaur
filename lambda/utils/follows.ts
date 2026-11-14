@@ -47,8 +47,7 @@ export async function Follows_listApproved(di: IDI, viewerId: string): Promise<I
     userId: r.followeeId,
     nickname: nicknames[r.followeeId],
     canSeeNotes: r.permissions.notes,
-    canSeePrograms: r.permissions.programs,
-    canEditPrograms: r.permissions.programEdits,
+    canEditPrograms: r.permissions.programs,
   }));
 }
 

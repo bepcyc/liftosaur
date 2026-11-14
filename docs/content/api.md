@@ -283,7 +283,7 @@ DELETE /api/v1/history/:id
 GET /api/v1/friends
 ```
 
-Lists the people you follow in Liftosaur. These are the friends whose workouts you can read. `canSeeNotes` says whether that friend shares their workout notes with you. `canSeePrograms` and `canEditPrograms` say whether you can read and edit their programs.
+Lists the people you follow in Liftosaur. These are the friends whose workouts you can read. `canSeeNotes` says whether that friend shares their workout notes with you. `canEditPrograms` says whether you can read and edit their programs.
 
 **Response:**
 
@@ -295,8 +295,7 @@ Lists the people you follow in Liftosaur. These are the friends whose workouts y
         "userId": "abc123",
         "nickname": "Sam",
         "canSeeNotes": false,
-        "canSeePrograms": true,
-        "canEditPrograms": false
+        "canEditPrograms": true
       }
     ]
   }
@@ -360,7 +359,7 @@ GET /api/v1/friends/:userId/history/:id
 GET /api/v1/friends/:userId/programs
 ```
 
-Needs the friend to share programs with you (`canSeePrograms`). Otherwise returns `404`.
+Needs the friend to let you edit programs (`canEditPrograms`). Otherwise returns `404`.
 
 **Response:**
 
@@ -390,7 +389,6 @@ Returns the program as Liftoscript text, plus `base`. Pass `base` back unchanged
     "id": "k3j2h1g0",
     "name": "5/3/1 BBB",
     "isCurrent": true,
-    "canEdit": true,
     "text": "# Week 1\n## Day 1\nSquat / 3x5 / 225lb\n",
     "base": "eyJ2IjoxLCJvd25lcklkIjoiYWJjMTIzIn0"
   }

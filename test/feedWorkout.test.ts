@@ -15,7 +15,6 @@ describe("FeedWorkout_fromRecord", () => {
     const workout = FeedWorkout_fromRecord(record, settings, "owner", {
       notes: false,
       programs: false,
-      programEdits: false,
     });
     expect(workout.notes).to.equal(undefined);
     expect(workout.exercises[0].notes).to.equal(undefined);
@@ -29,7 +28,6 @@ describe("FeedWorkout_fromRecord", () => {
     const workout = FeedWorkout_fromRecord(record, settings, "owner", {
       notes: true,
       programs: false,
-      programEdits: false,
     });
     expect(workout.notes).to.equal("felt tired");
     expect(workout.exercises[0].notes).to.equal("elbow hurts");
@@ -51,7 +49,6 @@ describe("FeedWorkout_fromRecord", () => {
     const workout = FeedWorkout_fromRecord(record, settings, "owner", {
       notes: true,
       programs: false,
-      programEdits: false,
     });
     const json = JSON.stringify(workout);
     expect(json).to.not.contain("secret");
@@ -74,7 +71,6 @@ describe("FeedWorkout_fromRecord", () => {
     const workout = FeedWorkout_fromRecord(record, settings, "owner", {
       notes: false,
       programs: false,
-      programEdits: false,
     });
     expect(workout.stats.durationMs).to.equal(20000);
   });
@@ -84,7 +80,6 @@ describe("FeedWorkout_fromRecord", () => {
     const workout = FeedWorkout_fromRecord(record, settings, "owner", {
       notes: false,
       programs: false,
-      programEdits: false,
     });
     expect(workout.exercises[0].name).to.equal("Bench Press, Barbell");
     expect(workout.exercises[0].exerciseType).to.eql({ id: "benchPress", equipment: "barbell" });
@@ -111,7 +106,6 @@ describe("FeedWorkout_fromRecord", () => {
     const workout = FeedWorkout_fromRecord(record, custom, "owner", {
       notes: false,
       programs: false,
-      programEdits: false,
     });
     expect(workout.exercises[0].name).to.equal("Zercher Carry");
     expect(workout.exercises[0].exerciseType).to.equal(undefined);

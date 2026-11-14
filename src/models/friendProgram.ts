@@ -28,7 +28,6 @@ export interface IFriendProgramContext {
   exported: IExportedProgram;
   settings: ISettings;
   base: string;
-  canEdit: boolean;
 }
 
 export interface IProgramEditSummary {

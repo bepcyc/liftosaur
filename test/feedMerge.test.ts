@@ -16,7 +16,6 @@ function friend(ownerId: string, id: number, date: string): IFeedWorkout {
   return FeedWorkout_fromRecord(FriendsFixtures_record(id, date), Settings_build(), ownerId, {
     notes: false,
     programs: false,
-    programEdits: false,
   });
 }
 
