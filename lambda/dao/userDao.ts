@@ -751,6 +751,27 @@ export class UserDao {
     );
   }
 
+  public async getCurrentProgramIdsByIds(userIds: string[]): Promise<Partial<Record<string, string>>> {
+    if (userIds.length === 0) {
+      return {};
+    }
+    const env = Utils_getEnv();
+    const items = await this.di.dynamo.batchGet<{ id: string; storage?: { currentProgramId?: string } }>({
+      tableName: userTableNames[env].users,
+      keys: userIds.map((ui) => ({ id: ui })),
+      projection: "#id, #storage.#currentProgramId",
+      attrs: { "#id": "id", "#storage": "storage", "#currentProgramId": "currentProgramId" },
+    });
+    const result: Partial<Record<string, string>> = {};
+    for (const item of items) {
+      const programId = item.storage?.currentProgramId;
+      if (programId) {
+        result[item.id] = programId;
+      }
+    }
+    return result;
+  }
+
   public async getNicknamesByIds(userIds: string[]): Promise<Partial<Record<string, string>>> {
     if (userIds.length === 0) {
       return {};

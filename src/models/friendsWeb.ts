@@ -2,14 +2,16 @@ import { ISettings } from "../types";
 import { IAccount } from "./account";
 import { IFeedResponse } from "./feedWorkout";
 import { Follow_displayName, IFollowing } from "./follow";
-import { IFriendProgramSummary } from "./friendProgram";
+import { IFriendProgramCard } from "./friendProgram";
 import { IReactor } from "./reactions";
 
 export interface IFriendsWebRow {
   userId: string;
   name: string;
+  nickname?: string;
   lastWorkoutAt?: number;
   canEditPrograms: boolean;
+  currentProgramName?: string;
 }
 
 interface IFriendsPageBase {
@@ -28,15 +30,26 @@ export type IFriendsPageData =
       settings: ISettings;
       feed: IFeedResponse;
     })
-  | (IFriendsPageBase & { kind: "programs"; ownerId: string; name: string; programs: IFriendProgramSummary[] });
+  | (IFriendsPageBase & {
+      kind: "programs";
+      ownerId: string;
+      name: string;
+      programs: IFriendProgramCard[];
+      settings: ISettings;
+    });
 
-export function FriendsWeb_rows(following: IFollowing[]): IFriendsWebRow[] {
+export function FriendsWeb_rows(
+  following: IFollowing[],
+  currentProgramNames: Partial<Record<string, string>> = {}
+): IFriendsWebRow[] {
   return following
     .map((f) => ({
       userId: f.userId,
       name: Follow_displayName(f.nickname),
+      nickname: f.nickname,
       lastWorkoutAt: f.lastWorkoutAt,
       canEditPrograms: f.permissions.programs,
+      currentProgramName: f.permissions.programs ? currentProgramNames[f.userId] : undefined,
     }))
     .sort((a, b) => (b.lastWorkoutAt ?? 0) - (a.lastWorkoutAt ?? 0) || a.name.localeCompare(b.name));
 }

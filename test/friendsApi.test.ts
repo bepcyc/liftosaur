@@ -303,6 +303,16 @@ describe("Friends API", () => {
     expect(follows.following[0].permissions).to.eql({ notes: false, programs: true });
   });
 
+  it("tells the website whether you follow anyone, for the Friends menu link", async () => {
+    const before = JSON.parse((await call(event("GET", "/api/usercontext", "anna"))).body);
+    expect(before.account.hasFriends).to.equal(false);
+    await befriend("anna", "boris");
+    const after = JSON.parse((await call(event("GET", "/api/usercontext", "anna"))).body);
+    expect(after.account.hasFriends).to.equal(true);
+    const followed = JSON.parse((await call(event("GET", "/api/usercontext", "boris"))).body);
+    expect(followed.account.hasFriends).to.equal(false);
+  });
+
   describe("friends web pages", () => {
     it("sends a signed-out visitor to the login page", async () => {
       for (const path of ["/user/friends", "/user/friends/boris/workouts", "/user/friends/boris/programs"]) {
@@ -312,10 +322,13 @@ describe("Friends API", () => {
       }
     });
 
-    it("lists the people you follow, with a programs link only for those who share programs", async () => {
+    it("lists the people you follow, with programs only for those who share them", async () => {
+      await addProgram("boris", "# Week 1\n## Day 1\nSquat / 3x5 / 100lb\n");
+      await addProgram("carl", "# Week 1\n## Day 1\nSquat / 3x5 / 100lb\n");
       await befriend("anna", "boris", false, { programs: true });
       await befriend("anna", "carl", false);
       const page = await call(event("GET", "/user/friends", "anna"));
+      expect(page.body.match(/Running Strength/g)).to.have.length(1);
       expect(page.statusCode).to.equal(200);
       expect(page.body).to.contain("Boris");
       expect(page.body).to.contain("Carl");

@@ -8,6 +8,8 @@ import { FriendProgramBase_decode, FriendProgramBase_encode } from "./friendProg
 import { FriendProgramUpdate_check } from "./friendProgramUpdate";
 import { IFollowPermissions } from "../../src/models/follow";
 import {
+  FriendProgram_card,
+  IFriendProgramCard,
   IFriendProgramContext,
   IFriendProgramSummary,
   IProgramEdit,
@@ -19,7 +21,7 @@ import { IExportedProgram, Program_exportProgram } from "../../src/models/progra
 import { Settings_webEditorInitial } from "../../src/models/settings";
 import { FriendProjection_settings } from "../../src/models/friendProjection";
 import { IPlannerFriendTarget } from "../../src/pages/planner/models/plannerProgramSave";
-import { IProgram } from "../../src/types";
+import { IProgram, ISettings } from "../../src/types";
 import { FieldRevision_programPlanner } from "../../src/utils/fieldRevision";
 import { VersionTrackerUtils_SERVER_DEVICE_ID } from "../../src/models/versionTracker/utils";
 import { PlannerProgram_generateFullText } from "../../src/pages/planner/models/plannerProgram";
@@ -91,6 +93,28 @@ export async function FriendPrograms_list(
         .sort((a, b) => Number(b.isCurrent) - Number(a.isCurrent) || a.name.localeCompare(b.name)),
     },
   };
+}
+
+export async function FriendPrograms_cards(
+  di: IDI,
+  viewerId: string,
+  ownerId: string
+): Promise<IApiResult<{ programs: IFriendProgramCard[]; settings: ISettings }>> {
+  const access = await FriendPrograms_access(di, viewerId, ownerId);
+  if (!access.success) {
+    return access;
+  }
+  const owner = await loadOwner(di, ownerId);
+  if (!owner.success) {
+    return owner;
+  }
+  const storage = owner.data.storage;
+  const settings = FriendProjection_settings(storage.settings, access.data);
+  const programs = (storage.programs ?? [])
+    .filter(editable)
+    .map((p) => FriendProgram_card(p, settings, p.id === storage.currentProgramId))
+    .sort((a, b) => Number(b.isCurrent) - Number(a.isCurrent) || a.name.localeCompare(b.name));
+  return { success: true, data: { programs, settings } };
 }
 
 export async function FriendPrograms_get(

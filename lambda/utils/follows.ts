@@ -9,6 +9,7 @@ import {
   Follow_defaultPermissions,
   Follow_maxFollows,
   IApiFriend,
+  IFollowing,
   IFollowPermissions,
   IFollowsResponse,
 } from "../../src/models/follow";
@@ -79,6 +80,30 @@ export async function Follows_load(di: IDI, userId: string): Promise<IFollowsRes
       .filter((r) => r.status === "pending")
       .map((r) => ({ requestId: r.requestId, nickname: nicknames[r.followeeId], createdAt: r.createdAt })),
   };
+}
+
+export async function Follows_currentProgramNames(
+  di: IDI,
+  following: IFollowing[]
+): Promise<Partial<Record<string, string>>> {
+  const sharing = following.filter((f) => f.permissions.programs).map((f) => f.userId);
+  const userDao = new UserDao(di);
+  const programIds = await userDao.getCurrentProgramIdsByIds(sharing);
+  const names = await Concurrency_runWithLimit(
+    sharing.map((ownerId) => async () => {
+      const programId = programIds[ownerId];
+      return programId != null ? (await userDao.getProgram(ownerId, programId))?.name : undefined;
+    }),
+    10
+  );
+  const result: Partial<Record<string, string>> = {};
+  sharing.forEach((ownerId, i) => {
+    const name = names[i];
+    if (name != null) {
+      result[ownerId] = name;
+    }
+  });
+  return result;
 }
 
 export async function Follows_approve(

@@ -23,6 +23,7 @@ import { HistoryRecordsDao } from "./dao/historyRecordDao";
 import {
   Follows_approve,
   Follows_load,
+  Follows_currentProgramNames,
   Follows_newRequestId,
   Follows_removeRequest,
   Follows_setPermissions,
@@ -33,6 +34,7 @@ import {
   FriendPrograms_editorContext,
   FriendPrograms_get,
   FriendPrograms_list,
+  FriendPrograms_cards,
   FriendPrograms_listEdits,
   FriendPrograms_listEditsFor,
   FriendPrograms_markEditsSeen,
@@ -3580,7 +3582,11 @@ const getUserContextHandler: RouteHandler<IPayload, APIGatewayProxyResult, typeo
       }
     );
   }
-  const account = Account_getFromStorage(user.id, user.email, user.storage);
+  const following = await new FollowDao(di).listFollowing(user.id);
+  const account = {
+    ...Account_getFromStorage(user.id, user.email, user.storage),
+    hasFriends: following.some((row) => row.status === "approved"),
+  };
   return ResponseUtils_json(200, event, { account, units: user.storage.settings.units });
 };
 
@@ -4073,7 +4079,7 @@ const getUserFriendsHandler: RouteHandler<IPayload, APIGatewayProxyResult, typeo
     isMobile: isMobileRequest(payload),
     account,
     now: Date.now(),
-    friends: FriendsWeb_rows(follows.following),
+    friends: FriendsWeb_rows(follows.following, await Follows_currentProgramNames(payload.di, follows.following)),
   });
 };
 
@@ -4120,7 +4126,7 @@ const getUserFriendProgramsHandler: RouteHandler<
   const { account, user } = userResult.data;
   const [follows, programs] = await Promise.all([
     Follows_load(payload.di, user.id),
-    FriendPrograms_list(payload.di, user.id, params.userId),
+    FriendPrograms_cards(payload.di, user.id, params.userId),
   ]);
   const friend = follows.following.find((f) => f.userId === params.userId);
   if (friend == null || !programs.success) {
@@ -4134,6 +4140,7 @@ const getUserFriendProgramsHandler: RouteHandler<
     ownerId: friend.userId,
     name: Follow_displayName(friend.nickname),
     programs: programs.data.programs,
+    settings: programs.data.settings,
   });
 };
 
