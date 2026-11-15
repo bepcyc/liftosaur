@@ -16,7 +16,7 @@ export interface IPlannerCapabilities {
   canSaveSettings: boolean;
   canRename: boolean;
   canShare: boolean;
-  editingLabel?: string;
+  otherAccountWarning?: string;
   customExercisesLockedReason?: string;
 }
 
@@ -38,7 +38,7 @@ export function PlannerProgramSave_capabilities(
     canSaveSettings: false,
     canRename: false,
     canShare: false,
-    editingLabel: `Editing ${owner}'s program`,
+    otherAccountWarning: `You're editing ${owner}'s program, not yours. Saving changes it on their phone right away.`,
     customExercisesLockedReason: `Custom exercises belong to ${owner}'s account. Pick one of theirs or a built-in exercise.`,
   };
 }

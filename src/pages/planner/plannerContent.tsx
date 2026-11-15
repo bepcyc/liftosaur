@@ -58,7 +58,7 @@ import { track } from "../../utils/posthog";
 import { BottomSheetOrModalMuscleGroupsContent } from "../../components/bottomSheetOrModalMuscleGroupsContent";
 import { BottomSheetMusclesOverride } from "../../components/bottomSheetMusclesOverride";
 import { ClipboardUtils_copy } from "../../utils/clipboard";
-import { PlannerToolbar } from "./components/plannerToolbar";
+import { PlannerToolbar, PlannerToolbar_warningHeightPx } from "./components/plannerToolbar";
 import { PlannerHelp } from "./components/plannerHelp";
 import { PlannerSidePanelHost } from "./components/plannerSidePanelHost";
 import { ModalPlannerSwapScope } from "./components/modalPlannerSwapScope";
@@ -174,6 +174,7 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
 
   const friendTarget = props.friendTarget;
   const capabilities = PlannerProgramSave_capabilities(props.account != null, friendTarget);
+  const stickyTopPx = toolbarHeightPx + (capabilities.otherAccountWarning != null ? PlannerToolbar_warningHeightPx : 0);
   const [initialSettings] = useState(
     () =>
       friendTarget?.settings ??
@@ -503,11 +504,6 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
               It's your affiliate link
             </div>
           )}
-          {capabilities.editingLabel != null && (
-            <div className="text-sm font-semibold text-text-purple" data-testid="planner-friend-target">
-              {capabilities.editingLabel}
-            </div>
-          )}
           <h1 className="text-2xl font-bold md:text-3xl">
             {!capabilities.canRename ? (
               state.current.program.name
@@ -566,6 +562,7 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
         canRedo={!!canRedo(state)}
         isPanelOpen={isPanelOpen}
         showSave={!!props.shouldSync}
+        warning={capabilities.otherAccountWarning}
         isSaveDisabled={isLoading || isInvalid || !isChanged(state)}
         isSaving={isLoading}
         isPreviewDisabled={isInvalid}
@@ -605,7 +602,7 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
                 evaluatedProgram={evaluatedProgram}
                 settings={settings}
                 host={gridHost}
-                stickyHeaderHeight={toolbarHeightPx}
+                stickyHeaderHeight={stickyTopPx}
                 plannerDispatch={dispatch}
               />
             ) : mode === "full" && state.fulltext != null && fullEvaluation != null ? (
@@ -635,7 +632,7 @@ export function PlannerContent(props: IPlannerContentProps): JSX.Element {
           >
             <div
               className="md:sticky md:overflow-y-auto md:max-h-[calc(100vh-3rem)]"
-              style={{ top: toolbarHeightPx, overscrollBehavior: "contain" }}
+              style={{ top: stickyTopPx, overscrollBehavior: "contain" }}
             >
               <PlannerSidePanelHost
                 state={state}

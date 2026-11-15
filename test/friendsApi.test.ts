@@ -496,7 +496,7 @@ describe("Friends API", () => {
       await befriend("carl", "boris", false, { programs: true });
       const page = await call(event("GET", "/planner/friend/boris/p1", "carl"));
       expect(page.statusCode).to.equal(200);
-      expect(page.body).to.contain("Editing Boris");
+      expect(page.body).to.contain("editing Boris&#x27;s program, not yours");
       expect(page.body).to.contain("Squat");
       expect(page.body).to.not.contain("boris@example.com");
     });

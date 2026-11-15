@@ -42,10 +42,11 @@ describe("PlannerProgramSave", () => {
 
       const coach = PlannerProgramSave_capabilities(true, friend);
       expect(coach).to.deep.include({ canSaveSettings: false, canRename: false, canShare: false });
-      expect(coach.editingLabel).to.equal("Editing Sam's program");
+      expect(coach.otherAccountWarning).to.contain("Sam's program, not yours");
+      expect(own.otherAccountWarning).to.equal(undefined);
       expect(coach.customExercisesLockedReason).to.contain("Sam's account");
-      expect(PlannerProgramSave_capabilities(true, { ...friend, nickname: undefined }).editingLabel).to.equal(
-        "Editing your friend's program"
+      expect(PlannerProgramSave_capabilities(true, { ...friend, nickname: undefined }).otherAccountWarning).to.contain(
+        "your friend's program"
       );
     });
 
