@@ -303,6 +303,50 @@ describe("Friends API", () => {
     expect(follows.following[0].permissions).to.eql({ notes: false, programs: true });
   });
 
+  describe("friends web pages", () => {
+    it("sends a signed-out visitor to the login page", async () => {
+      for (const path of ["/user/friends", "/user/friends/boris/workouts", "/user/friends/boris/programs"]) {
+        const page = await call(event("GET", path, undefined));
+        expect(page.statusCode).to.equal(302);
+        expect(page.headers?.location).to.contain("/login");
+      }
+    });
+
+    it("lists the people you follow, with a programs link only for those who share programs", async () => {
+      await befriend("anna", "boris", false, { programs: true });
+      await befriend("anna", "carl", false);
+      const page = await call(event("GET", "/user/friends", "anna"));
+      expect(page.statusCode).to.equal(200);
+      expect(page.body).to.contain("Boris");
+      expect(page.body).to.contain("Carl");
+      expect(page.body).to.contain("/user/friends/boris/programs");
+      expect(page.body).to.not.contain("/user/friends/carl/programs");
+      expect(page.body).to.contain("/user/friends/carl/workouts");
+    });
+
+    it("shows a friend's workouts without notes they did not share, and 404s for people you don't follow", async () => {
+      await befriend("anna", "boris", false);
+      await addRecord("boris", 1000, "2026-11-01T10:00:00.000Z", "SECRET");
+      const page = await call(event("GET", "/user/friends/boris/workouts", "anna"));
+      expect(page.statusCode).to.equal(200);
+      expect(page.body).to.contain('data-testid="feed-workout"');
+      expect(page.body).to.not.contain("SECRET");
+      expect((await call(event("GET", "/user/friends/boris/workouts", "carl"))).statusCode).to.equal(404);
+    });
+
+    it("lists a friend's programs with edit links only with the programs permission", async () => {
+      await addProgram("boris", "# Week 1\n## Day 1\nSquat / 3x5 / 100lb\n");
+      await befriend("anna", "boris", false, { programs: true });
+      await befriend("carl", "boris", false);
+      const page = await call(event("GET", "/user/friends/boris/programs", "anna"));
+      expect(page.statusCode).to.equal(200);
+      expect(page.body).to.contain("Strength");
+      expect(page.body).to.contain("/planner/friend/boris/p1");
+      expect((await call(event("GET", "/user/friends/boris/programs", "carl"))).statusCode).to.equal(404);
+      expect((await call(event("GET", "/user/friends/anna/programs", "anna"))).statusCode).to.equal(404);
+    });
+  });
+
   describe("friend programs", () => {
     const original = "# Week 1\n## Day 1\nSquat / 3x5 / 100lb\n";
     const deload = "# Week 1\n## Day 1\nSquat / 5x5 / 90lb\n";

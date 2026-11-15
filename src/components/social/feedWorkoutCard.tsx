@@ -74,6 +74,8 @@ function FeedExerciseRow(props: { exercise: IFeedExercise; settings: ISettings }
   );
 }
 
+const reactionBarHeight = 32;
+
 interface IFeedWorkoutCardProps {
   workout: IFeedWorkout;
   nickname?: string;
@@ -83,6 +85,7 @@ interface IFeedWorkoutCardProps {
   showDate: boolean;
   onOpenOwner?: () => void;
   onReact: (reaction: IReaction | undefined) => void;
+  isReactionBarHidden?: boolean;
 }
 
 export const FeedWorkoutCard = memo(function FeedWorkoutCard(props: IFeedWorkoutCardProps): JSX.Element {
@@ -128,13 +131,17 @@ export const FeedWorkoutCard = memo(function FeedWorkoutCard(props: IFeedWorkout
           </View>
         ) : null}
         <View className="pt-3 mt-3 border-t border-border-cardyellow">
-          <ReactionBar
-            summary={props.reactions}
-            canReact={true}
-            tone="yellow"
-            onReact={props.onReact}
-            testIdPrefix={`reaction-${workout.ownerId}-${workout.recordId}`}
-          />
+          {props.isReactionBarHidden ? (
+            <View style={{ height: reactionBarHeight }} />
+          ) : (
+            <ReactionBar
+              summary={props.reactions}
+              canReact={true}
+              tone="yellow"
+              onReact={props.onReact}
+              testIdPrefix={`reaction-${workout.ownerId}-${workout.recordId}`}
+            />
+          )}
           {props.reactions != null && props.reactions.total > 0 && (
             <Text className="mt-2 text-xs text-text-secondary">{Reactions_reactorsLine(props.reactions)}</Text>
           )}

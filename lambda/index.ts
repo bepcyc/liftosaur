@@ -41,7 +41,14 @@ import {
 import type { IApiError } from "./utils/apiv1";
 import { FollowAccess_canReact } from "./utils/followAccess";
 import { FollowInvitePage_html } from "./followInvitePage";
-import { Follow_defaultPermissions, Follow_parsePermissions, Follow_parsePermissionsPatch } from "../src/models/follow";
+import {
+  Follow_defaultPermissions,
+  Follow_displayName,
+  Follow_parsePermissions,
+  Follow_parsePermissionsPatch,
+} from "../src/models/follow";
+import { FriendsWeb_rows, IFriendsPageData } from "../src/models/friendsWeb";
+import { renderFriendsPageHtml } from "./friendsWeb";
 import { IReactionSummary, Reactions_isReaction } from "../src/models/reactions";
 import { FeedWorkout_key } from "../src/models/feedWorkout";
 import { RecordShare_settingsWithoutNotes, RecordShare_withoutNotes } from "../src/models/recordShare";
@@ -4035,6 +4042,101 @@ const getUserDashboardsHandler: RouteHandler<
   };
 };
 
+function friendsPageResponse(payload: IPayload, data: IFriendsPageData): APIGatewayProxyResult {
+  return {
+    statusCode: 200,
+    body: renderFriendsPageHtml(payload.di.fetch, data),
+    headers: { "content-type": "text/html" },
+  };
+}
+
+function friendsPageNotFound(): APIGatewayProxyResult {
+  return { statusCode: 404, body: "Not Found", headers: { "content-type": "text/html" } };
+}
+
+function isMobileRequest(payload: IPayload): boolean {
+  return Mobile_isMobile(payload.event.headers["user-agent"] || payload.event.headers["User-Agent"] || "");
+}
+
+const getUserFriendsEndpoint = Endpoint.build("/user/friends");
+const getUserFriendsHandler: RouteHandler<IPayload, APIGatewayProxyResult, typeof getUserFriendsEndpoint> = async ({
+  payload,
+}) => {
+  const userResult = await getUserAccount(payload);
+  if (!userResult.success) {
+    return userResult.error;
+  }
+  const { account, user } = userResult.data;
+  const follows = await Follows_load(payload.di, user.id);
+  return friendsPageResponse(payload, {
+    kind: "list",
+    isMobile: isMobileRequest(payload),
+    account,
+    now: Date.now(),
+    friends: FriendsWeb_rows(follows.following),
+  });
+};
+
+const getUserFriendWorkoutsEndpoint = Endpoint.build("/user/friends/:userId/workouts");
+const getUserFriendWorkoutsHandler: RouteHandler<
+  IPayload,
+  APIGatewayProxyResult,
+  typeof getUserFriendWorkoutsEndpoint
+> = async ({ payload, match: { params } }) => {
+  const userResult = await getUserAccount(payload);
+  if (!userResult.success) {
+    return userResult.error;
+  }
+  const { account, user } = userResult.data;
+  const follows = await Follows_load(payload.di, user.id);
+  const friend = follows.following.find((f) => f.userId === params.userId);
+  if (friend == null) {
+    return friendsPageNotFound();
+  }
+  const feed = await Feed_load(payload.di, user.id, { owners: [friend.userId], limit: 20 });
+  return friendsPageResponse(payload, {
+    kind: "workouts",
+    isMobile: isMobileRequest(payload),
+    account,
+    now: Date.now(),
+    ownerId: friend.userId,
+    name: Follow_displayName(friend.nickname),
+    viewer: { userId: user.id, nickname: user.storage.settings.nickname },
+    settings: user.storage.settings,
+    feed,
+  });
+};
+
+const getUserFriendProgramsEndpoint = Endpoint.build("/user/friends/:userId/programs");
+const getUserFriendProgramsHandler: RouteHandler<
+  IPayload,
+  APIGatewayProxyResult,
+  typeof getUserFriendProgramsEndpoint
+> = async ({ payload, match: { params } }) => {
+  const userResult = await getUserAccount(payload);
+  if (!userResult.success) {
+    return userResult.error;
+  }
+  const { account, user } = userResult.data;
+  const [follows, programs] = await Promise.all([
+    Follows_load(payload.di, user.id),
+    FriendPrograms_list(payload.di, user.id, params.userId),
+  ]);
+  const friend = follows.following.find((f) => f.userId === params.userId);
+  if (friend == null || !programs.success) {
+    return friendsPageNotFound();
+  }
+  return friendsPageResponse(payload, {
+    kind: "programs",
+    isMobile: isMobileRequest(payload),
+    account,
+    now: Date.now(),
+    ownerId: friend.userId,
+    name: Follow_displayName(friend.nickname),
+    programs: programs.data.programs,
+  });
+};
+
 const getUserDashboardEndpoint = Endpoint.build("/user/d/:dashboardid");
 const getUserDashboardHandler: RouteHandler<IPayload, APIGatewayProxyResult, typeof getUserDashboardEndpoint> = async ({
   payload,
@@ -4795,6 +4897,9 @@ export const getRawHandler = (diBuilder: () => IDI): IHandler => {
       .get(getUserProgramsEndpoint, getUserProgramsHandler)
       .get(getUserProgramEndpoint, getUserProgramHandler)
       .get(getUserDashboardsEndpoint, getUserDashboardsHandler)
+      .get(getUserFriendsEndpoint, getUserFriendsHandler)
+      .get(getUserFriendWorkoutsEndpoint, getUserFriendWorkoutsHandler)
+      .get(getUserFriendProgramsEndpoint, getUserFriendProgramsHandler)
       .get(getUserDashboardEndpoint, getUserDashboardHandler)
       .get(getUserAffiliatesEndpoint, getUserAffiliatesHandler)
       .get(getProgramRevisionsEndpoint, getProgramRevisionsHandler)
