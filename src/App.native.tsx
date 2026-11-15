@@ -449,6 +449,11 @@ export function AppRoot(props: { initialState: IState; env: IEnv }): React.JSX.E
       if (!url) {
         return;
       }
+      const followInviteToken = FollowInviteLink_token(url);
+      if (followInviteToken != null) {
+        OpenFollowInvite_open(followInviteToken);
+        return;
+      }
       let parsed: URL;
       try {
         parsed = new URL(url);
@@ -457,11 +462,6 @@ export function AppRoot(props: { initialState: IState; env: IEnv }): React.JSX.E
       }
       const isLiftosaurHost = parsed.host === "liftosaur.com" || parsed.host === "www.liftosaur.com";
       if (!isLiftosaurHost) {
-        return;
-      }
-      const followInviteToken = FollowInviteLink_token(url);
-      if (followInviteToken != null) {
-        OpenFollowInvite_open(followInviteToken);
         return;
       }
       const isImportPath =

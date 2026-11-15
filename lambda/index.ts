@@ -2543,7 +2543,7 @@ const postFollowInviteHandler: RouteHandler<IPayload, APIGatewayProxyResult, typ
     return ResponseUtils_json(401, event, { error: "Not authenticated" });
   }
   const invite = await new FollowInviteDao(di).create(userId);
-  const url = `https://www.liftosaur.com/f/${invite.token}`;
+  const url = `${process.env.HOST || "https://www.liftosaur.com"}/f/${invite.token}`;
   return ResponseUtils_json(200, event, { data: { token: invite.token, url, expiresAt: invite.expiresAt } });
 };
 

@@ -97,6 +97,7 @@ describe("FollowInviteLink_token", () => {
   it("reads the token from an invite path or query", () => {
     expect(FollowInviteLink_token("https://www.liftosaur.com/f/abcDEF12_-x")).to.equal("abcDEF12_-x");
     expect(FollowInviteLink_token("https://liftosaur.com/app/?followInvite=abcdefgh12")).to.equal("abcdefgh12");
+    expect(FollowInviteLink_token("https://stage.liftosaur.com/f/abcDEF12_-x")).to.equal("abcDEF12_-x");
   });
 
   it("ignores other hosts, other paths and malformed tokens", () => {

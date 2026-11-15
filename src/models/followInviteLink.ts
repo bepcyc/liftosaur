@@ -1,4 +1,4 @@
-const liftosaurHosts = ["liftosaur.com", "www.liftosaur.com"];
+const liftosaurHosts = ["liftosaur.com", "www.liftosaur.com", "stage.liftosaur.com"];
 const tokenPattern = /^[A-Za-z0-9_-]{8,64}$/;
 
 export function FollowInviteLink_token(url: string, allowAnyHost: boolean = false): string | undefined {
